@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OSL · Plan RH EVD DRC — Carte &amp; Suivi missions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root {
+  --bg:#f0f2f5;--bg2:#ffffff;--bg3:#f7f8fa;--border:rgba(0,0,0,0.08);
+  --text:#1a1d23;--muted:#6b7280;--accent:#0066ff;--green:#16a34a;
+  --red:#dc2626;--orange:#d97706;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+  --r:8px;--r2:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;gap:12px;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.header-left{display:flex;align-items:center;gap:11px}
+.logo{width:32px;height:32px;border-radius:7px;background:linear-gradient(135deg,#7c3aed,#0066ff);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:500;color:white;flex-shrink:0}
+.header-title{font-size:14px;font-weight:600;letter-spacing:-0.01em}
+.header-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tile-sw{display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:3px}
+.tile-btn{padding:4px 10px;border-radius:5px;border:none;background:transparent;font-family:var(--font);font-size:11px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .12s}
+.tile-btn.active{background:white;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+/* Boutons header */
+.hdr-btn{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:var(--r);border:none;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.hdr-btn-primary{background:var(--accent);color:white}
+.hdr-btn-primary:hover{background:#0052cc}
+.hdr-btn-save{background:#16a34a;color:white}
+.hdr-btn-save:hover{background:#15803d}
+.hdr-btn-save.saving{background:#d97706;cursor:not-allowed}
+.hdr-btn-share{background:white;color:var(--text);border:1px solid var(--border)!important;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.hdr-btn-share:hover{background:var(--bg3);border-color:rgba(0,0,0,0.18)!important}
+/* Share modal */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:10000;background:rgba(15,17,23,0.45);backdrop-filter:blur(4px);align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:white;border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,0.2);width:420px;max-width:calc(100vw - 32px);overflow:hidden;animation:modalIn .18s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px) scale(0.97)}to{opacity:1;transform:none}}
+.modal-header{padding:20px 20px 0;display:flex;align-items:flex-start;justify-content:space-between}
+.modal-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.modal-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.modal-close{width:28px;height:28px;border-radius:6px;border:none;background:var(--bg3);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);flex-shrink:0;transition:background .12s}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-body{padding:16px 20px}
+.share-option{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--r2);border:1px solid var(--border);cursor:pointer;transition:all .12s;margin-bottom:8px}
+.share-option:last-child{margin-bottom:0}
+.share-option:hover{border-color:var(--accent);background:rgba(0,102,255,0.03)}
+.share-option:hover .so-icon{background:var(--accent);color:white}
+.so-icon{width:38px;height:38px;border-radius:9px;background:var(--bg3);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-size:18px}
+.so-title{font-size:13px;font-weight:500;color:var(--text)}
+.so-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.modal-divider{height:1px;background:var(--border);margin:4px 0 12px}
+.share-summary-box{background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);padding:10px 12px;font-size:11px;font-family:var(--mono);color:var(--muted);line-height:1.6;white-space:pre-wrap;max-height:120px;overflow-y:auto;margin-top:8px}
+.modal-footer{padding:0 20px 18px;display:flex;gap:8px;justify-content:flex-end}
+.modal-action{padding:8px 16px;border-radius:var(--r);border:1px solid var(--border);background:white;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;color:var(--text);transition:all .12s}
+.modal-action:hover{background:var(--bg3)}
+.modal-action.primary{background:var(--accent);color:white;border:none}
+.modal-action.primary:hover{background:#0052cc}
+#file-input{display:none}
+.upload-badge{padding:3px 9px;border-radius:20px;background:rgba(0,102,255,0.08);border:1px solid rgba(0,102,255,0.2);color:var(--accent);font-size:11px;font-family:var(--mono);display:none;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upload-badge.visible{display:block}
+.main{display:flex;flex:1;overflow:hidden;min-height:0}
+.sidebar{width:268px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;box-shadow:2px 0 8px rgba(0,0,0,0.04);min-height:0}
+.sb-sec{padding:13px 15px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sb-sec-scroll{padding:13px 15px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;flex:0 0 auto;max-height:38vh}
+.sb-sec-scroll .sb-lbl{padding-bottom:9px;flex-shrink:0}
+.sb-sec-scroll .filter-list{overflow-y:auto;padding-bottom:10px}
+.sb-lbl{font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:9px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat-card{background:var(--bg3);border-radius:var(--r);padding:9px 11px;border:1px solid var(--border)}
+.stat-num{font-size:20px;font-weight:600;font-family:var(--mono);line-height:1}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:3px}
+.sn-intl{color:var(--accent)}.sn-natl{color:#16a34a}.sn-tot{color:var(--text)}.sn-sit{color:#d97706}
+.filter-list{display:flex;flex-direction:column;gap:3px}
+.fi{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r);cursor:pointer;border:1px solid transparent;transition:all .12s;user-select:none}
+.fi:hover{background:var(--bg3)}.fi.active{border-color:var(--border);background:var(--bg3)}.fi.inactive{opacity:.3}
+.fi-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.fi-name{font-size:12px;flex:1}
+.fi-cnt{font-size:10px;font-family:var(--mono);color:var(--muted);background:var(--bg);padding:2px 5px;border-radius:4px;border:1px solid var(--border)}
+.loc-list{overflow-y:auto;flex:1;min-height:0}
+.loc-item{padding:10px 15px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.loc-item:hover{background:var(--bg3)}
+.loc-item.selected{background:rgba(0,102,255,0.04);border-left:3px solid var(--accent);padding-left:12px}
+.loc-name{font-size:13px;font-weight:500}.loc-level{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:1px}
+.loc-bar{display:flex;gap:2px;margin-top:7px;height:4px;border-radius:2px;overflow:hidden}
+.loc-seg{border-radius:2px;height:100%}
+.map-wrap{flex:1;position:relative}
+#map{width:100%;height:100%}
+.leaflet-container{background:#e8eef4 !important}
+.leaflet-control-zoom a{background:white !important;color:var(--text) !important;border-color:var(--border) !important;font-weight:600 !important}
+.leaflet-control-zoom a:hover{background:var(--bg3) !important;color:var(--accent) !important}
+.leaflet-control-attribution{background:rgba(255,255,255,0.85) !important;color:var(--muted) !important;font-size:10px !important}
+.leaflet-tooltip{background:transparent !important;border:none !important;box-shadow:none !important;padding:0 !important}
+.site-lbl{background:white;border:1px solid rgba(0,0,0,0.18);color:#1a1d23;font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;white-space:nowrap;letter-spacing:.03em;box-shadow:0 1px 4px rgba(0,0,0,0.12)}
+.leaflet-popup-content-wrapper{background:white !important;border:1px solid var(--border) !important;border-radius:var(--r2) !important;box-shadow:0 8px 32px rgba(0,0,0,0.14) !important;padding:0 !important}
+.leaflet-popup-tip-container{display:none}
+.leaflet-popup-content{margin:0 !important;width:290px !important}
+.popup-inner{padding:15px}
+.popup-loc{font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
+.popup-lvl{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.popup-div{height:1px;background:var(--border);margin:11px 0}
+.popup-cat-ttl{font-size:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 3px;font-weight:500}
+.popup-role{display:flex;align-items:flex-start;gap:6px;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)}
+.popup-role:last-child{border-bottom:none}
+.role-st{font-size:9px;padding:2px 5px;border-radius:3px;font-family:var(--mono);font-weight:600;flex-shrink:0;margin-top:1px}
+.st-ok{background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0}
+.st-id{background:#fef3c7;color:#d97706;border:1px solid #fde68a}
+.st-va{background:#fee2e2;color:#dc2626;border:1px solid #fecaca}
+.role-info{flex:1;min-width:0}
+.role-fn{line-height:1.3;color:var(--text)}
+.role-name{font-size:10px;color:var(--accent);font-style:italic;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-dates{font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:1px}
+.role-type{font-size:9px;color:var(--muted);font-family:var(--mono);flex-shrink:0;text-align:right;margin-top:1px}
+.popup-footer{display:flex;justify-content:space-between;padding:9px 15px;background:var(--bg3);border-top:1px solid var(--border);border-radius:0 0 var(--r2) var(--r2);font-size:11px;font-family:var(--mono);color:var(--muted)}
+.pf-num{font-weight:600}
+.statusbar{position:absolute;bottom:14px;right:14px;z-index:1000;display:flex;gap:7px}
+.status-pill{background:white;border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:11px;font-family:var(--mono);color:var(--muted);display:flex;align-items:center;gap:5px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.sp-dot{width:6px;height:6px;border-radius:50%}
+/* Save indicator */
+.save-info{position:absolute;top:14px;left:14px;z-index:1000}
+.save-pill{background:white;border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:10px;font-family:var(--mono);color:var(--muted);box-shadow:0 2px 8px rgba(0,0,0,0.08);display:none}
+.save-pill.visible{display:block}
+/* Drop overlay */
+.drop-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(240,242,245,0.92);backdrop-filter:blur(6px);align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.drop-overlay.show{display:flex}
+.drop-box{border:2px dashed var(--accent);border-radius:var(--r2);padding:44px 60px;text-align:center;background:white;box-shadow:0 8px 32px rgba(0,102,255,0.12);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{border-color:var(--accent)}50%{border-color:#16a34a}}
+.drop-icon{font-size:44px;margin-bottom:11px}
+.drop-title{font-size:17px;font-weight:500;color:var(--text);margin-bottom:5px}
+.drop-sub{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:white;border:1px solid var(--border);border-radius:var(--r);padding:9px 18px;font-size:13px;z-index:9998;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.1);color:var(--text);white-space:nowrap}
+.toast.show{opacity:1}.toast.error{border-color:#fecaca;color:#dc2626}.toast.success{border-color:#bbf7d0;color:#16a34a}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.14);border-radius:2px}
+/* ── TABS ── */
+.app-wrap{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0}
+.tab-bar{display:flex;gap:0;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 18px;flex-shrink:0}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none;display:flex;align-items:center;gap:7px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-badge{font-size:10px;padding:2px 6px;border-radius:10px;font-family:var(--mono);font-weight:600}
+.tab-content{display:none;flex:1;overflow:hidden}
+.tab-content.active{display:flex;flex-direction:column;overflow-y:auto;flex:1}
+/* ── MISSIONS TAB ── */
+.missions-layout{display:flex;flex:1;overflow:hidden}
+.missions-body{padding:24px;display:flex;flex-direction:column;gap:24px}
+/* Alert summary cards */
+.alert-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.alert-card{border-radius:var(--r2);padding:14px 16px;display:flex;align-items:center;gap:12px;border:1px solid transparent}
+.ac-w1{background:#fff1f2;border-color:#fecdd3}.ac-w2{background:#fff7ed;border-color:#fed7aa}
+.ac-w3{background:#fefce8;border-color:#fef08a}.ac-w4{background:#f0fdf4;border-color:#bbf7d0}
+.ac-expired{background:#fafafa;border-color:var(--border)}
+.ac-icon{font-size:26px;flex-shrink:0}
+.ac-num{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1}
+.ac-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.ac-w1 .ac-num{color:#dc2626}.ac-w2 .ac-num{color:#ea580c}
+.ac-w3 .ac-num{color:#ca8a04}.ac-w4 .ac-num{color:#16a34a}
+.ac-expired .ac-num{color:var(--muted)}
+/* Gantt */
+.gantt-section{background:white;border-radius:var(--r2);border:1px solid var(--border);overflow:hidden}
+.gantt-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.gantt-title{font-size:13px;font-weight:600}
+.gantt-sub{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.gantt-wrap{overflow-x:auto;padding:0 18px 18px}
+.gantt-grid{display:grid;min-width:700px}
+.gantt-month-row{display:flex;border-bottom:1px solid var(--border);margin-bottom:4px}
+.gantt-month-cell{flex:1;font-size:10px;font-family:var(--mono);color:var(--muted);text-align:center;padding:4px 0;min-width:60px}
+.gantt-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.04)}
+.gantt-row:last-child{border-bottom:none}
+.gantt-label{width:180px;flex-shrink:0;font-size:12px;overflow:hidden}
+.gantt-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt-loc{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.gantt-track{flex:1;height:28px;background:var(--bg3);border-radius:6px;overflow:hidden;position:relative;min-width:0}
+.gantt-bar{height:100%;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:10px;color:white;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:absolute;top:0}
+.gantt-today{position:absolute;top:0;bottom:0;width:2px;background:#dc2626;opacity:0.6;z-index:2}
+.gantt-days-left{width:56px;flex-shrink:0;text-align:right;font-size:11px;font-family:var(--mono);font-weight:600}
+/* Detail table */
+.detail-section{background:white;border-radius:var(--r2);border:1px solid var(--border);overflow:hidden}
+.detail-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.detail-title{font-size:13px;font-weight:600}
+.detail-filter{display:flex;gap:4px}
+.df-btn{padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:white;font-size:11px;font-family:var(--mono);cursor:pointer;color:var(--muted);transition:all .12s}
+.df-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,102,255,0.06)}
+table.detail-tbl{width:100%;border-collapse:collapse}
+table.detail-tbl th{font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:500;padding:9px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--bg3)}
+table.detail-tbl td{padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(0,0,0,0.04)}
+table.detail-tbl tr:last-child td{border-bottom:none}
+table.detail-tbl tr:hover td{background:rgba(0,102,255,0.02)}
+.prog-wrap{width:120px;display:flex;align-items:center;gap:6px}
+.prog-bar{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px}
+.prog-pct{font-size:10px;font-family:var(--mono);color:var(--muted);width:30px;text-align:right}
+.days-badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:12px;font-size:11px;font-family:var(--mono);font-weight:600;white-space:nowrap}
+.d-w1{background:#fff1f2;color:#dc2626;border:1px solid #fecdd3}
+.d-w2{background:#fff7ed;color:#ea580c;border:1px solid #fed7aa}
+.d-w3{background:#fefce8;color:#ca8a04;border:1px solid #fef08a}
+.d-w4{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+.d-ok{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}
+.d-exp{background:var(--bg3);color:var(--muted);border:1px solid var(--border)}
+.name-cell{font-weight:500}
+.fn-cell{color:var(--muted)}
+
+/* ── RIGHT ALERT PANEL ── */
+.alert-panel{width:0;flex-shrink:0;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1);box-shadow:-2px 0 8px rgba(0,0,0,0.04)}
+.alert-panel.open{width:300px}
+.ap-header{padding:14px 14px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ap-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
+.ap-close{width:26px;height:26px;border-radius:6px;border:none;background:var(--bg3);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:background .12s;flex-shrink:0}
+.ap-close:hover{background:var(--bg);color:var(--text)}
+.ap-body{overflow-y:auto;flex:1;padding:10px;min-height:0}
+.ap-chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.ap-chip{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--mono);cursor:pointer;border:1px solid transparent;transition:all .12s;user-select:none}
+.ap-chip-w1{background:#fff1f2;color:#dc2626;border-color:#fecdd3}
+.ap-chip-w2{background:#fff7ed;color:#ea580c;border-color:#fed7aa}
+.ap-chip-w3{background:#fefce8;color:#ca8a04;border-color:#fef08a}
+.ap-chip-inactive{opacity:.35;filter:grayscale(.6)}
+.ap-row{display:flex;flex-direction:column;gap:4px;padding:9px 10px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:6px;transition:border-color .12s}
+.ap-row:hover{border-color:rgba(0,0,0,0.2)}
+.ap-row-top{display:flex;align-items:center;gap:8px}
+.ap-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;letter-spacing:-.5px}
+.ap-name{font-size:12px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap-badge{font-size:10px;font-weight:700;font-family:var(--mono);padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0}
+.ap-badge-w1{background:#fee2e2;color:#dc2626}.ap-badge-w2{background:#ffedd5;color:#ea580c}.ap-badge-w3{background:#fef9c3;color:#ca8a04}
+.ap-meta{font-size:10px;color:var(--muted);font-family:var(--mono);padding-left:36px}
+.ap-prog{height:4px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:2px}
+.ap-prog-fill{height:100%;border-radius:3px}
+.ap-empty{text-align:center;padding:28px 12px;color:var(--muted);font-size:12px}
+.ap-section-lbl{font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 6px;padding:0 2px}
+/* Toggle button floating on map */
+.alert-toggle-wrap{position:absolute;top:14px;right:14px;z-index:1001}
+.alert-toggle-btn{display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:20px;background:white;border:1px solid var(--border);font-size:11px;font-family:var(--mono);font-weight:500;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1);transition:all .15s;color:var(--text);white-space:nowrap}
+.alert-toggle-btn:hover{background:var(--bg3);box-shadow:0 3px 12px rgba(0,0,0,0.15)}
+.atb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .2s}
+.atb-pulse{animation:atbPulse 1.6s ease-in-out infinite}
+@keyframes atbPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.5)}60%{box-shadow:0 0 0 5px rgba(220,38,38,0)}}
+
+
+/* ── EXPORT BUTTON ── */
+.export-wrap{position:relative;display:inline-block}
+.export-btn{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border);background:white;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;color:var(--text);transition:all .12s}
+.export-btn:hover{background:var(--bg3);border-color:rgba(0,0,0,0.2)}
+.export-dropdown{display:none;position:absolute;right:0;top:calc(100% + 6px);background:white;border:1px solid var(--border);border-radius:var(--r2);box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:160px;z-index:200;overflow:hidden}
+.export-dropdown.open{display:block}
+.export-opt{display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:13px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border)}
+.export-opt:last-child{border-bottom:none}
+.export-opt:hover{background:var(--bg3)}
+.export-opt-icon{font-size:16px;flex-shrink:0}
+.export-opt-label{font-weight:500}
+.export-opt-sub{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:1px}
+</style>
+</head>
+<body>
+
+<div class="drop-overlay" id="drop-overlay">
+  <div class="drop-box">
+    <div class="drop-icon">📂</div>
+    <div class="drop-title">Déposer le fichier Excel</div>
+    <div class="drop-sub">Colonnes : Niveau · Localisation · Fonction · Catégorie · Type · Status · Nombre · Nom</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Share modal -->
+<div class="modal-overlay" id="share-modal" onclick="if(event.target===this)closeShare()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Partager la carte</div>
+        <div class="modal-sub" id="share-modal-sub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeShare()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="share-option" onclick="shareEmail()">
+        <div class="so-icon">✉️</div>
+        <div>
+          <div class="so-title">Envoyer par email</div>
+          <div class="so-sub">Ouvre votre client mail avec le résumé et le lien de téléchargement</div>
+        </div>
+      </div>
+      <div class="share-option" onclick="shareDownloadHTML()">
+        <div class="so-icon">📎</div>
+        <div>
+          <div class="so-title">Télécharger pour partager</div>
+          <div class="so-sub">Génère un fichier HTML autonome à joindre à un email ou Teams</div>
+        </div>
+      </div>
+      <div class="share-option" onclick="shareCopyText()">
+        <div class="so-icon">📋</div>
+        <div>
+          <div class="so-title">Copier le résumé</div>
+          <div class="so-sub">Texte prêt à coller dans un message, Teams ou WhatsApp</div>
+        </div>
+      </div>
+      <div class="modal-divider"></div>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:5px">APERÇU DU RÉSUMÉ</div>
+      <div class="share-summary-box" id="share-summary-box"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-action" onclick="closeShare()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="header-left">
+    <div class="logo">OSL</div>
+    <div>
+      <div class="header-title">Plan RH EVD DRC — Carte de terrain</div>
+      <div class="header-sub" id="header-sub">Chargement…</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="tile-sw">
+      <button class="tile-btn" id="btn-topo" onclick="setTile('topo')">Relief</button>
+      <button class="tile-btn active" id="btn-osm" onclick="setTile('osm')">Standard</button>
+      <button class="tile-btn" id="btn-sat" onclick="setTile('sat')">Satellite</button>
+    </div>
+    <div class="upload-badge" id="upload-badge"></div>
+    <label class="hdr-btn hdr-btn-primary" for="file-input">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Mettre à jour
+    </label>
+    <input type="file" id="file-input" accept=".xlsx,.xls"/>
+    <button class="hdr-btn hdr-btn-save" id="save-btn" onclick="saveHTML()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Sauvegarde
+    </button>
+    <button class="hdr-btn hdr-btn-share" id="share-btn" onclick="openShare()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Partager
+    </button>
+  </div>
+</header>
+
+<div class="app-wrap">
+<div class="tab-bar">
+  <div class="tab active" id="tab-map" onclick="switchTab('map')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+    Carte terrain
+  </div>
+  <div class="tab" id="tab-missions" onclick="switchTab('missions')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Suivi missions
+    <span class="tab-badge" id="alert-badge" style="background:#fee2e2;color:#dc2626;display:none">0</span>
+  </div>
+</div>
+
+<div class="tab-content active" id="content-map">
+<div class="main">
+  <div class="sidebar">
+    <div class="sb-sec">
+      <div class="sb-lbl">Résumé</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-num sn-tot" id="s-total">—</div><div class="stat-lbl">Total postes</div></div>
+        <div class="stat-card"><div class="stat-num sn-sit" id="s-sites">—</div><div class="stat-lbl">Sites actifs</div></div>
+        <div class="stat-card"><div class="stat-num sn-intl" id="s-intl">—</div><div class="stat-lbl">Internationaux</div></div>
+        <div class="stat-card"><div class="stat-num sn-natl" id="s-natl">—</div><div class="stat-lbl">Nationaux</div></div>
+      </div>
+    </div>
+    <div class="sb-sec-scroll">
+      <div class="sb-lbl">Filtrer par fonction</div>
+      <div class="filter-list" id="filter-list"></div>
+    </div>
+    <div class="sb-lbl" style="padding:12px 15px 5px;flex-shrink:0">Sites</div>
+    <div class="loc-list" id="loc-list"></div>
+  </div>
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="save-info"><div class="save-pill" id="save-pill"></div></div>
+    <div class="alert-toggle-wrap">
+      <button class="alert-toggle-btn" id="alert-toggle-btn" onclick="toggleAlertPanel()">
+        <span class="atb-dot" id="atb-dot" style="background:#9ca3af"></span>
+        <span id="atb-label">Alertes missions</span>
+      </button>
+    </div>
+    <div class="statusbar">
+      <div class="status-pill"><div class="sp-dot" style="background:#16a34a"></div><span id="status-txt">Prêt</span></div>
+    </div>
+  </div>
+  <!-- Right alert panel -->
+  <div class="alert-panel" id="alert-panel">
+    <div class="ap-header">
+      <div class="ap-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Alertes fins de mission
+      </div>
+      <button class="ap-close" onclick="toggleAlertPanel()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="ap-body" id="ap-body">
+      <div class="ap-empty">Chargement…</div>
+    </div>
+  </div>
+</div><!-- /.main -->
+</div><!-- /#content-map -->
+
+<div class="tab-content" id="content-missions">
+  <div class="missions-body" id="missions-body"></div>
+</div>
+
+</div><!-- /.app-wrap -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+
+// ── Geodata ──
+const GEO = {
+  'kinshasa':[-4.322,15.322],'bunia':[1.558,30.245],
+  'mongbwalo':[1.95,30.03],'rwampara':[1.38,30.15],
+  'goma':[-1.679,29.220],'beni':[0.488,29.473],
+  'butembo':[0.143,29.288],'uganda':[0.347,32.583],
+  'kampala':[0.347,32.583],'isiro':[2.773,27.617],
+  'kisangani':[0.515,25.186],'dungu':[3.616,28.565],
+  'komanda':[1.683,29.716],'irumu':[1.450,29.867],
+};
+function getCoords(name) {
+  const k=name.toLowerCase().trim().replace(/^\s+/,'');
+  if(GEO[k]) return GEO[k];
+  for(const [key,val] of Object.entries(GEO)) if(k.includes(key)||key.includes(k)) return val;
+  return null;
+}
+
+// ── Category colours ──
+const CAT_COLORS={
+  'Coordination':'#7c3aed','Supply Chain':'#0891b2','Health Logistics':'#ea580c',
+  'Operations Support':'#0066ff','Warehouse':'#db2777','Fleet management':'#ca8a04',
+  'Fleet Management':'#ca8a04','Transport':'#16a34a','Procurement':'#64748b',
+};
+function catColor(cat) {
+  const k=(cat||'').trim();
+  if(CAT_COLORS[k]) return CAT_COLORS[k];
+  for(const [key,val] of Object.entries(CAT_COLORS)) if(k.toLowerCase().includes(key.toLowerCase())) return val;
+  const h=[...k].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+  return `hsl(${h},55%,45%)`;
+}
+
+// ── Status ──
+function statusClass(s){const v=(s||'').toLowerCase();if(v.includes('recrut')||v==='recruited')return 'ok';if(v.includes('identif'))return 'id';return 'va';}
+function statusLabel(s){const v=(s||'').toLowerCase();if(v.includes('recrut')||v==='recruited')return 'STAFFÉ';if(v.includes('identif'))return 'IDENTIF.';return 'VACANT';}
+
+// ── Map ──
+const TILES={
+  topo:{url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',attr:'© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://opentopomap.org">OpenTopoMap</a>',sub:'abc'},
+  osm:{url:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',attr:'© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',sub:'abcd'},
+  sat:{url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',attr:'© <a href="https://www.esri.com/">Esri</a> World Imagery',sub:null},
+};
+const map=L.map('map',{zoomControl:true}).setView([0.5,29.5],7);
+let currentTile=null,currentTileKey='osm';
+function setTile(key) {
+  if(currentTile) map.removeLayer(currentTile);
+  const t=TILES[key];const opts={attribution:t.attr,maxZoom:19};
+  if(t.sub) opts.subdomains=t.sub;
+  currentTile=L.tileLayer(t.url,opts).addTo(map);
+  document.querySelectorAll('.tile-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('btn-'+key);if(btn)btn.classList.add('active');
+  currentTileKey=key;
+}
+setTile('osm');
+
+// ── State ──
+let DATA=[],LOCATIONS=[],activeFilters=new Set(),markers=[],selectedLoc=null,currentFilename=null;
+
+// ── Parse xlsx ──
+function parseXLSX(ab) {
+  const wb=XLSX.read(ab,{type:'array'});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+  const hIdx=rows.findIndex(r=>r&&r.some(c=>c&&String(c).toLowerCase().includes('localisation')));
+  const start=hIdx>=0?hIdx+1:3;
+  const result=[];let curNiveau='',curLoc='';
+  for(let i=start;i<rows.length;i++){
+    const r=rows[i];if(!r||r.every(c=>!c))continue;
+    if(r[0])curNiveau=String(r[0]).trim();if(r[1])curLoc=String(r[1]).trim();
+    const fn=r[2]?String(r[2]).trim():null,cat=r[3]?String(r[3]).trim():'',
+          type=r[4]?String(r[4]).trim():'',stat=r[5]?String(r[5]).trim():'Vacant',
+          n=parseInt(r[6])||1,nom=r[7]?String(r[7]).trim():null,
+          deb=r[8]?String(r[8]).trim():null,fin=r[9]?String(r[9]).trim():null;
+    if(!fn||!curLoc)continue;
+    result.push({niveau:curNiveau,loc:curLoc,fn,cat,type,stat,n,nom,deb,fin});
+  }
+  return result;
+}
+
+function groupByLoc(rows){
+  const m={};
+  rows.forEach(r=>{const k=r.loc.trim();if(!m[k])m[k]={name:k,niveau:r.niveau,roles:[]};m[k].roles.push(r);});
+  return Object.values(m);
+}
+
+function getCategories(locs){const s=new Set();locs.forEach(l=>l.roles.forEach(r=>s.add(r.cat.trim())));return[...s].filter(Boolean);}
+
+// ── Filters ──
+function buildFilters(cats){
+  activeFilters=new Set(cats);
+  const el=document.getElementById('filter-list');el.innerHTML='';
+  cats.forEach(cat=>{
+    const count=DATA.filter(r=>r.cat.trim()===cat).reduce((s,r)=>s+r.n,0);
+    const item=document.createElement('div');
+    item.className='fi active';item.dataset.cat=cat;
+    item.innerHTML=`<div class="fi-dot" style="background:${catColor(cat)}"></div><div class="fi-name">${cat}</div><div class="fi-cnt">${count}</div>`;
+    item.addEventListener('click',()=>{
+      if(activeFilters.has(cat)){activeFilters.delete(cat);item.className='fi inactive';}
+      else{activeFilters.add(cat);item.className='fi active';}
+      renderMarkers();renderLocList();
+    });
+    el.appendChild(item);
+  });
+}
+
+// ── Location list ──
+function renderLocList(){
+  const el=document.getElementById('loc-list');el.innerHTML='';
+  LOCATIONS.forEach(loc=>{
+    const vis=loc.roles.filter(r=>activeFilters.has(r.cat.trim()));
+    if(!vis.length||!getCoords(loc.name))return;
+    const cats={};vis.forEach(r=>{cats[r.cat]=(cats[r.cat]||0)+r.n;});
+    const tot=Object.values(cats).reduce((a,b)=>a+b,0);
+    const bar=Object.entries(cats).map(([c,n])=>`<div class="loc-seg" style="flex:${n};background:${catColor(c)}"></div>`).join('');
+    const staffed=vis.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+    const item=document.createElement('div');
+    item.className='loc-item'+(selectedLoc===loc.name?' selected':'');item.dataset.loc=loc.name;
+    item.innerHTML=`<div class="loc-name">${loc.name}</div><div class="loc-level">${loc.niveau} · <span style="color:var(--green)">${staffed}</span>/${tot} staffés</div><div class="loc-bar">${bar}</div>`;
+    item.addEventListener('click',()=>flyTo(loc.name));
+    el.appendChild(item);
+  });
+}
+
+function flyTo(name){
+  selectedLoc=name;
+  document.querySelectorAll('.loc-item').forEach(el=>el.classList.toggle('selected',el.dataset.loc===name));
+  const coords=getCoords(name);if(coords)map.flyTo(coords,10,{duration:1.2});
+  const mk=markers.find(m=>m._locName===name);if(mk)setTimeout(()=>mk.openPopup(),1200);
+}
+
+// ── Pie SVG ──
+function makePieSVG(loc,size){
+  const vis=loc.roles.filter(r=>activeFilters.has(r.cat.trim()));
+  const cats={};vis.forEach(r=>{const c=r.cat.trim();cats[c]=(cats[c]||0)+r.n;});
+  const entries=Object.entries(cats),total=entries.reduce((s,[,v])=>s+v,0);
+  if(!total)return null;
+  const r=size/2,cx=r,cy=r;
+  let paths='';
+  if(entries.length===1){
+    paths=`<circle cx="${cx}" cy="${cy}" r="${r-1}" fill="${catColor(entries[0][0])}" stroke="rgba(255,255,255,0.6)" stroke-width="2"/>`;
+  }else{
+    let angle=-Math.PI/2;
+    entries.forEach(([cat,count])=>{
+      const slice=(count/total)*2*Math.PI,x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle),end=angle+slice,x2=cx+r*Math.cos(end),y2=cy+r*Math.sin(end),large=slice>Math.PI?1:0;
+      paths+=`<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${catColor(cat)}" stroke="white" stroke-width="1.5"/>`;
+      angle=end;
+    });
+  }
+  const inner=r*0.37;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"/>${paths}
+    <circle cx="${cx}" cy="${cy}" r="${inner}" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"/>
+    <text x="${cx}" y="${cy+1}" text-anchor="middle" dominant-baseline="middle" font-size="${inner*0.95}" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">${total}</text>
+  </svg>`;
+}
+
+// ── Popup ──
+function buildPopup(loc){
+  const vis=loc.roles.filter(r=>activeFilters.has(r.cat.trim()));
+  const grouped={};vis.forEach(r=>{const c=r.cat.trim();if(!grouped[c])grouped[c]=[];grouped[c].push(r);});
+  const total=vis.reduce((s,r)=>s+r.n,0),intl=vis.filter(r=>r.type==='International').reduce((s,r)=>s+r.n,0),
+        natl=vis.filter(r=>r.type!=='International').reduce((s,r)=>s+r.n,0),
+        staffed=vis.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+  let catHtml='';
+  Object.entries(grouped).forEach(([cat,roles])=>{
+    catHtml+=`<div class="popup-cat-ttl" style="color:${catColor(cat)}">${cat}</div>`;
+    roles.forEach(r=>{
+      const sc=statusClass(r.stat),sl=statusLabel(r.stat),fnLabel=r.n>1?`${r.fn} ×${r.n}`:r.fn;
+      const nomLine=r.nom?`<div class="role-name">👤 ${r.nom}</div>`:'';
+      const dateLine=(r.deb||r.fin)?`<div class="role-dates">${r.deb||''}${r.deb&&r.fin?' → ':''}${r.fin||''}</div>`:'';
+      catHtml+=`<div class="popup-role"><span class="role-st st-${sc}">${sl}</span><div class="role-info"><div class="role-fn">${fnLabel}</div>${nomLine}${dateLine}</div><span class="role-type">${r.type}</span></div>`;
+    });
+  });
+  return `<div class="popup-inner"><div class="popup-loc">${loc.name}</div><div class="popup-lvl">${loc.niveau}</div><div class="popup-div"></div>${catHtml}</div>
+  <div class="popup-footer"><span>${total} postes · <span class="pf-num" style="color:var(--green)">${staffed} staffés</span></span><span><span class="pf-num" style="color:var(--accent)">${intl}</span> intl · <span class="pf-num" style="color:#16a34a">${natl}</span> natl</span></div>`;
+}
+
+// ── Render markers ──
+function renderMarkers(){
+  markers.forEach(m=>map.removeLayer(m));markers=[];
+  LOCATIONS.forEach(loc=>{
+    const coords=getCoords(loc.name);if(!coords)return;
+    const vis=loc.roles.filter(r=>activeFilters.has(r.cat.trim()));if(!vis.length)return;
+    const isHQ=loc.niveau.toLowerCase().includes('co')||loc.niveau.toLowerCase().includes('evd');
+    const size=isHQ?58:42,svg=makePieSVG(loc,size);if(!svg)return;
+    const icon=L.divIcon({className:'',html:svg,iconSize:[size,size],iconAnchor:[size/2,size/2],popupAnchor:[0,-size/2-6]});
+    const mk=L.marker(coords,{icon});mk._locName=loc.name;
+    mk.bindTooltip(L.tooltip({permanent:true,direction:'top',offset:[0,-(size/2+4)],className:''}).setContent(`<div class="site-lbl">${loc.name.toUpperCase()}</div>`));
+    mk.bindPopup(buildPopup(loc),{maxWidth:310});
+    mk.on('popupopen',()=>{selectedLoc=loc.name;document.querySelectorAll('.loc-item').forEach(el=>el.classList.toggle('selected',el.dataset.loc===loc.name));});
+    mk.addTo(map);markers.push(mk);
+  });
+  updateStats();
+}
+
+function updateStats(){
+  const vis=DATA.filter(r=>activeFilters.has(r.cat.trim()));
+  const total=vis.reduce((s,r)=>s+r.n,0),intl=vis.filter(r=>r.type==='International').reduce((s,r)=>s+r.n,0),
+        natl=vis.filter(r=>r.type!=='International').reduce((s,r)=>s+r.n,0),
+        sites=LOCATIONS.filter(l=>l.roles.some(r=>activeFilters.has(r.cat.trim()))&&getCoords(l.name)).length;
+  document.getElementById('s-total').textContent=total;document.getElementById('s-intl').textContent=intl;
+  document.getElementById('s-natl').textContent=natl;document.getElementById('s-sites').textContent=sites;
+}
+
+// ── Load data ──
+function loadData(rows,filename){
+  DATA=rows;LOCATIONS=groupByLoc(rows);currentFilename=filename;
+  const cats=getCategories(LOCATIONS);
+  buildFilters(cats);renderMarkers();renderLocList();
+  const total=rows.reduce((s,r)=>s+r.n,0),staffed=rows.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+  document.getElementById('header-sub').textContent=`${LOCATIONS.length} sites · ${total} postes · ${staffed} staffés · ${new Date().toLocaleDateString('fr-FR')}`;
+  if(filename){const b=document.getElementById('upload-badge');b.textContent=filename;b.classList.add('visible');}
+  document.getElementById('status-txt').textContent=`${total} postes, ${staffed} staffés`;
+  updateAlertBadge();
+  updateAlertToggleBtn();
+  showToast(`✓ ${filename||'Données'} chargé(e)s — ${LOCATIONS.length} sites, ${total} postes`,'success');
+}
+
+// ── ★ SAUVEGARDE ──
+function saveHTML(){
+  const btn=document.getElementById('save-btn');
+  btn.classList.add('saving');btn.textContent='⏳ Génération…';
+
+  setTimeout(()=>{
+    try{
+      // Sérialiser les données actuelles en JSON embarqué dans le HTML
+      const dataJSON=JSON.stringify(DATA);
+      const now=new Date();
+      const dateStr=now.toLocaleDateString('fr-FR').replace(/\//g,'-');
+      const timeStr=now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}).replace(':','h');
+      const subText=document.getElementById('header-sub').textContent;
+
+      // Prendre le HTML courant du document et injecter les données à jour
+      const template=document.documentElement.outerHTML;
+
+      // Remplacer le bloc DEFAULT_ROWS par les données actuelles
+      const newRows=`const DEFAULT_ROWS = ${dataJSON};`;
+      let updated=template.replace(/const DEFAULT_ROWS\s*=\s*\[[\s\S]*?\];/,newRows);
+
+      // Mettre à jour le header-sub pour refléter la date de sauvegarde
+      updated=updated.replace(
+        /(<div class="header-sub" id="header-sub">)[^<]*/,
+        `$1${subText} · sauvegardé ${dateStr} ${timeStr}`
+      );
+
+      // Corriger les liens CDN locaux si le fichier a été enregistré via un navigateur
+      updated=updated.replace(/src="\.\/[^"]*leaflet\.js[^"]*"/g,'src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"');
+      updated=updated.replace(/href="\.\/[^"]*leaflet\.css[^"]*"/g,'href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"');
+      updated=updated.replace(/src="\.\/[^"]*xlsx[^"]*"/g,'src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"');
+      updated=updated.replace(/href="\.\/[^"]*css2[^"]*"/g,'href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap"');
+
+      // Télécharger
+      const blob=new Blob([updated],{type:'text/html;charset=utf-8'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      const fname=`OSL_EVD_RH_Map_${dateStr}_${timeStr}.html`;
+      a.href=url;a.download=fname;document.body.appendChild(a);a.click();
+      document.body.removeChild(a);URL.revokeObjectURL(url);
+
+      // Pill info
+      const pill=document.getElementById('save-pill');
+      pill.textContent=`💾 ${fname}`;pill.classList.add('visible');
+      setTimeout(()=>pill.classList.remove('visible'),5000);
+
+      showToast(`💾 Fichier sauvegardé : ${fname}`,'success');
+    }catch(e){
+      showToast('❌ Erreur de sauvegarde : '+e.message,'error');
+    }finally{
+      btn.classList.remove('saving');
+      btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Sauvegarde';
+    }
+  },100);
+}
+
+// ── Upload ──
+document.getElementById('file-input').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{try{const rows=parseXLSX(ev.target.result);if(!rows.length){showToast('❌ Aucune donnée trouvée','error');return;}loadData(rows,file.name);}catch(err){showToast('❌ Erreur : '+err.message,'error');}};
+  reader.readAsArrayBuffer(file);e.target.value='';
+});
+
+// ── Drag & drop ──
+const overlay=document.getElementById('drop-overlay');
+document.addEventListener('dragover',e=>{e.preventDefault();overlay.classList.add('show')});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)overlay.classList.remove('show')});
+document.addEventListener('drop',e=>{
+  e.preventDefault();overlay.classList.remove('show');
+  const file=e.dataTransfer.files[0];
+  if(!file||!file.name.match(/\.xlsx?$/i)){showToast('❌ Fichier .xlsx requis','error');return;}
+  const reader=new FileReader();
+  reader.onload=ev=>{try{const rows=parseXLSX(ev.target.result);if(!rows.length){showToast('❌ Aucune donnée','error');return;}loadData(rows,file.name);}catch(err){showToast('❌ Erreur : '+err.message,'error');}};
+  reader.readAsArrayBuffer(file);
+});
+
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+(type||'')+' show';
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ── Données intégrées (V3 — 24 mai 2026) ──
+const DEFAULT_ROWS = [
+  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Team Lead OSL - DRC',cat:'Coordination',type:'International',stat:'Recruté',n:1,nom:'Ahmadou Wouna',deb:'22 mai 2026',fin:'30 Septembre 2026'},
+  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Supply Chain Officer',cat:'Supply Chain',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Warehouse Manager',cat:'Warehouse',type:'UNV',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Warehouse Assistant',cat:'Warehouse',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Procurement Officer',cat:'Procurement',type:'National',stat:'Recruté',n:1,nom:'Fifi Tembo',deb:'22 Mai 2026',fin:'30 Septembre 2026'},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Team Lead OSL - EVD responses',cat:'Coordination',type:'International',stat:'Recruté',n:1,nom:'Zinedine Kada',deb:'22 mai 2026',fin:'1 juillet 2026'},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Health Logistician',cat:'Health Logistics',type:'International',stat:'Recruté',n:1,nom:'Luca Fontana',deb:'22 mai 2026',fin:'5 juin 2026'},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'HLCP Coordinator',cat:'Health Logistics',type:'International',stat:'Identified',n:1,nom:'Jason Carmichael',deb:null,fin:'1 juillet 2026'},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Log Field Support',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Supply Chain Manager',cat:'Supply Chain',type:'International',stat:'Recruté',n:1,nom:'Lesly Dieuville',deb:'22 mai 2026',fin:'30 juin 2026'},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Deputy SCM / Mobile implementing officer',cat:'Supply Chain',type:'International',stat:'Recruté',n:1,nom:'Miquel Serra',deb:'22 mai 2026',fin:'30 juin 2026'},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Fleet manager',cat:'Fleet management',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Recruté',n:1,nom:'Jacques Kanyala',deb:'22 mai 2026',fin:'30 juin 2026'},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Assistant Log Ops',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Assistant Supply',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Warehouse Assistant',cat:'Warehouse',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Procurement Assistant',cat:'Procurement',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination EVD',loc:'Bunia',fn:'Drivers',cat:'Transport',type:'National',stat:'Recruté',n:3,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Log OPS Officer',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Health Logistician',cat:'Health Logistics',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Assistant Log Field Ops / assistant fleet',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Assistant Supply Support',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Warehouse storekeeper',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Log OPS Officer',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Health Logistician',cat:'Health Logistics',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Assistant Log Field Ops / assistant fleet',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Assistant Supply Support',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Warehouse storekeeper',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Goma',fn:'OSL TL',cat:'Coordination',type:'International',stat:'Identified',n:1,nom:'Jerome Souquet',deb:'1 juin 2026',fin:'15 juillet 2026'},
+  {niveau:'Sous Coordination',loc:'Goma',fn:'Log OPS Officer',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Goma',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Goma',fn:'Assistant Log Field Ops',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Goma',fn:'Assistant Supply Support / procurement',cat:'Supply Chain',type:'National',stat:'Recruté',n:1,nom:'Aline Katungu',deb:'22 mai 2026',fin:'30 Septembre 2026'},
+  {niveau:'Sous Coordination',loc:'Goma',fn:'Warehouse storekeeper',cat:'Supply Chain',type:'National',stat:'Recruté',n:1,nom:'Frederic Saburo',deb:'22 mai 2026',fin:'30 Septembre 2026'},
+  {niveau:'Sous Coordination',loc:'Goma',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:3,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Beni',fn:'Log OPS Officer',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Beni',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Beni',fn:'Assistant Log Field Ops / assistant fleet',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Beni',fn:'Assistant Supply Support / procurement',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Beni',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Beni',fn:'Procurement Assistant',cat:'Procurement',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Butembo',fn:'Log OPS Officer',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Butembo',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Butembo',fn:'Assistant Log Field Ops / assistant fleet',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Butembo',fn:'Assistant Supply Support / procurement',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Butembo',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
+  {niveau:'Sous Coordination',loc:'Butembo',fn:'Procurement Assistant',cat:'Procurement',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination',loc:'Uganda',fn:'Team Lead OSL',cat:'Coordination',type:'International',stat:'Recruté',n:1,nom:'Carla Mendizabal',deb:'22 mai 2026',fin:'15 juillet 2026'},
+  {niveau:'Coordination',loc:'Uganda',fn:'Health Logistician',cat:'Health Logistics',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination',loc:'Uganda',fn:'Polyvalent LOG support',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination',loc:'Uganda',fn:'Supply Chain Officer',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination',loc:'Uganda',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination',loc:'Uganda',fn:'Warehouse Officer',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination',loc:'Uganda',fn:'Storekeeper',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination',loc:'Uganda',fn:'Procurement officer',cat:'Procurement',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
+  {niveau:'Coordination',loc:'Uganda',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
+];
+
+// ── ★ PARTAGER ──
+function buildSummaryText() {
+  const total = DATA.reduce((s,r)=>s+r.n,0);
+  const staffed = DATA.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+  const intl = DATA.filter(r=>r.type==='International').reduce((s,r)=>s+r.n,0);
+  const natl = DATA.filter(r=>r.type!=='International').reduce((s,r)=>s+r.n,0);
+  const date = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+
+  let lines = [];
+  lines.push(`📍 OSL – Plan RH Réponse EVD DRC`);
+  lines.push(`Mise à jour : ${date}`);
+  lines.push(`━━━━━━━━━━━━━━━━━━━━━━━`);
+  lines.push(`Sites actifs : ${LOCATIONS.filter(l=>getCoords(l.name)).length}`);
+  lines.push(`Total postes : ${total}  |  Staffés : ${staffed}  |  Vacants : ${total-staffed}`);
+  lines.push(`Internationaux : ${intl}  |  Nationaux : ${natl}`);
+  lines.push(`━━━━━━━━━━━━━━━━━━━━━━━`);
+  LOCATIONS.forEach(loc => {
+    if (!getCoords(loc.name)) return;
+    const tot = loc.roles.reduce((s,r)=>s+r.n,0);
+    const ok  = loc.roles.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+    const pct = Math.round(ok/tot*100);
+    const bar = ok===tot ? '🟢' : ok===0 ? '🔴' : '🟡';
+    lines.push(`${bar} ${loc.name.padEnd(12)} ${ok}/${tot} staffés (${pct}%)`);
+  });
+  lines.push(`━━━━━━━━━━━━━━━━━━━━━━━`);
+  const staffedPeople = DATA.filter(r=>r.nom&&statusClass(r.stat)==='ok');
+  if (staffedPeople.length) {
+    lines.push(`Personnel staffé :`);
+    staffedPeople.forEach(r => lines.push(`  • ${r.nom} — ${r.fn} (${r.loc})`));
+  }
+  return lines.join('\n');
+}
+
+function openShare() {
+  const summary = buildSummaryText();
+  document.getElementById('share-summary-box').textContent = summary;
+  const total = DATA.reduce((s,r)=>s+r.n,0);
+  const staffed = DATA.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+  document.getElementById('share-modal-sub').textContent =
+    `${LOCATIONS.filter(l=>getCoords(l.name)).length} sites · ${total} postes · ${staffed} staffés`;
+  document.getElementById('share-modal').classList.add('show');
+}
+
+function closeShare() {
+  document.getElementById('share-modal').classList.remove('show');
+}
+
+function shareEmail() {
+  // 1. Générer et télécharger le fichier HTML en arrière-plan
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR').replace(/\//g,'-');
+  const timeStr = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}).replace(':','h');
+  const fname = `OSL_EVD_RH_Map_${dateStr}_${timeStr}.html`;
+
+  try {
+    const dataJSON = JSON.stringify(DATA);
+    const subText = document.getElementById('header-sub').textContent;
+    let updated = document.documentElement.outerHTML;
+    updated = updated.replace(/const DEFAULT_ROWS\s*=\s*\[[\s\S]*?\];/, `const DEFAULT_ROWS = ${dataJSON};`);
+    updated = updated.replace(/(<div class="header-sub" id="header-sub">)[^<]*/, `$1${subText} · partagé ${dateStr} ${timeStr}`);
+    updated = updated.replace(/src="\.\/[^"]*leaflet\.js[^"]*"/g,'src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"');
+    updated = updated.replace(/href="\.\/[^"]*leaflet\.css[^"]*"/g,'href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"');
+    updated = updated.replace(/src="\.\/[^"]*xlsx[^"]*"/g,'src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"');
+    updated = updated.replace(/href="\.\/[^"]*css2[^"]*"/g,'href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap"');
+    const blob = new Blob([updated],{type:'text/html;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch(e) {
+    showToast('❌ Erreur génération fichier : '+e.message,'error');
+    return;
+  }
+
+  // 2. Ouvrir le client mail avec instructions pour joindre le fichier
+  const summary = buildSummaryText();
+  const subject = encodeURIComponent('OSL – Plan RH Réponse EVD DRC – Carte de terrain');
+  const body = encodeURIComponent(
+    `⚠️ ACTION REQUISE : Joindre le fichier "${fname}" téléchargé dans votre dossier Téléchargements.\n` +
+    `Le fichier contient la carte interactive complète (fonctionne sans internet).\n` +
+    `───────────────────────────────\n\n` +
+    summary +
+    `\n\n───────────────────────────────\n` +
+    `Pour consulter la carte : ouvrir le fichier "${fname}" dans un navigateur web.`
+  );
+
+  // Délai court pour laisser le téléchargement démarrer avant l'ouverture du mail
+  setTimeout(() => {
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }, 400);
+
+  closeShare();
+  showToast(`📎 Fichier généré — joindre "${fname}" à l'email`,'success');
+}
+
+function shareDownloadHTML() {
+  closeShare();
+  saveHTML();
+}
+
+function shareCopyText() {
+  const summary = buildSummaryText();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(summary).then(() => {
+      showToast('📋 Résumé copié dans le presse-papiers','success');
+      closeShare();
+    }).catch(() => fallbackCopy(summary));
+  } else {
+    fallbackCopy(summary);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('📋 Résumé copié dans le presse-papiers','success');
+    closeShare();
+  } catch(e) {
+    showToast('❌ Copie non supportée par ce navigateur','error');
+  }
+  document.body.removeChild(ta);
+}
+
+// Fermer la modale avec Escape
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeShare(); });
+
+// Fermer la modale avec Escape
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeShare(); });
+
+// ── RIGHT ALERT PANEL ──
+let alertPanelOpen = false;
+let apFilters = new Set(['w1','w2','w3']);
+
+function toggleAlertPanel() {
+  alertPanelOpen = !alertPanelOpen;
+  document.getElementById('alert-panel').classList.toggle('open', alertPanelOpen);
+  if (alertPanelOpen) renderAlertPanel();
+  setTimeout(() => map.invalidateSize(), 240);
+}
+
+function toggleApFilter(lvl, el) {
+  if (apFilters.has(lvl)) { apFilters.delete(lvl); el.classList.add('ap-chip-inactive'); }
+  else { apFilters.add(lvl); el.classList.remove('ap-chip-inactive'); }
+  renderAlertPanel();
+}
+
+function renderAlertPanel() {
+  const body = document.getElementById('ap-body');
+  const staff = getMissionStaff();
+
+  if (!staff.length) {
+    body.innerHTML = `<div class="ap-empty">Aucune mission avec dates renseignées.<br>Chargez un fichier Excel mis à jour.</div>`;
+    return;
+  }
+
+  // Count per level for chips
+  const counts = {w1:0,w2:0,w3:0};
+  staff.forEach(r => {
+    const lvl = alertLevel(daysLeft(r.fin));
+    if (counts[lvl] !== undefined) counts[lvl]++;
+  });
+
+  const chipDefs = [
+    {k:'w1', emoji:'🔴', label:`≤ 1 sem · ${counts.w1}`},
+    {k:'w2', emoji:'🟠', label:`≤ 2 sem · ${counts.w2}`},
+    {k:'w3', emoji:'🟡', label:`≤ 3 sem · ${counts.w3}`},
+  ];
+  const chips = chipDefs.map(c => {
+    const inactive = !apFilters.has(c.k) ? ' ap-chip-inactive' : '';
+    return `<div class="ap-chip ap-chip-${c.k}${inactive}" id="ap-chip-${c.k}" onclick="toggleApFilter('${c.k}',this)">${c.emoji} ${c.label}</div>`;
+  }).join('');
+
+  // Filter + sort
+  const filtered = staff
+    .filter(r => apFilters.has(alertLevel(daysLeft(r.fin))))
+    .sort((a,b) => {
+      const da = daysLeft(a.fin) ?? 9999, db = daysLeft(b.fin) ?? 9999;
+      return da - db;
+    });
+
+  // Group by urgency level for section labels
+  const sections = [];
+  let lastLvl = null;
+  filtered.forEach(r => {
+    const dl = daysLeft(r.fin);
+    const lvl = alertLevel(dl);
+    if (lvl !== lastLvl) {
+      sections.push({type:'label', lvl});
+      lastLvl = lvl;
+    }
+    sections.push({type:'row', r, dl, lvl});
+  });
+
+  const lvlLabels = {w1:'🔴 Fin dans moins d\'1 semaine', w2:'🟠 Fin dans 1 à 2 semaines', w3:'🟡 Fin dans 2 à 3 semaines'};
+  const lvlColors = {w1:'#dc2626', w2:'#ea580c', w3:'#ca8a04'};
+
+  const rowsHtml = sections.map(s => {
+    if (s.type === 'label') {
+      return `<div class="ap-section-lbl">${lvlLabels[s.lvl] || s.lvl}</div>`;
+    }
+    const {r, dl, lvl} = s;
+    const color = lvlColors[lvl] || '#6b7280';
+    const initials = r.nom.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const badgeLabel = dl === 0 ? "Aujourd'hui" : dl === 1 ? '1 jour' : `${dl}j`;
+
+    // Mission progress bar
+    const pct = (() => {
+      const s2 = parseDate(r.deb), e = parseDate(r.fin);
+      if (!s2 || !e) return null;
+      const tot = Math.round((e - s2) / 86400000);
+      const ela = Math.round((new Date() - s2) / 86400000);
+      return tot > 0 ? Math.max(0, Math.min(100, Math.round(ela/tot*100))) : null;
+    })();
+
+    const endFormatted = r.fin || '—';
+    const fnShort = r.fn.length > 26 ? r.fn.substring(0,24)+'…' : r.fn;
+
+    return `<div class="ap-row">
+      <div class="ap-row-top">
+        <div class="ap-avatar" style="background:${color}">${initials}</div>
+        <div class="ap-name" title="${r.nom}">${r.nom}</div>
+        <span class="ap-badge ap-badge-${lvl}">${badgeLabel}</span>
+      </div>
+      <div class="ap-meta">${fnShort} · ${r.loc}</div>
+      <div class="ap-meta" style="margin-top:1px">Fin : ${endFormatted}</div>
+      ${pct !== null ? `<div class="ap-prog" title="Mission à ${pct}%"><div class="ap-prog-fill" style="width:${pct}%;background:${color}"></div></div>` : ''}
+    </div>`;
+  }).join('');
+
+  const emptyHtml = filtered.length === 0
+    ? `<div class="ap-empty">✅ Aucune alerte pour les filtres sélectionnés</div>` : '';
+
+  body.innerHTML = `
+    <div class="ap-chips">${chips}</div>
+    ${rowsHtml || emptyHtml}
+  `;
+}
+
+function updateAlertToggleBtn() {
+  const staff = getMissionStaff();
+  const urgent = staff.filter(r => {
+    const lvl = alertLevel(daysLeft(r.fin));
+    return lvl === 'w1' || lvl === 'w2' || lvl === 'w3';
+  });
+  const btn = document.getElementById('alert-toggle-btn');
+  const dot = document.getElementById('atb-dot');
+  const lbl = document.getElementById('atb-label');
+  if (!btn) return;
+
+  if (urgent.length === 0) {
+    dot.style.background = '#16a34a';
+    dot.classList.remove('atb-pulse');
+    lbl.textContent = 'Missions OK';
+  } else {
+    const hasW1 = urgent.some(r => alertLevel(daysLeft(r.fin)) === 'w1');
+    dot.style.background = hasW1 ? '#dc2626' : '#ea580c';
+    dot.classList.add('atb-pulse');
+    lbl.textContent = `${urgent.length} alerte${urgent.length > 1 ? 's' : ''} mission${urgent.length > 1 ? 's' : ''}`;
+  }
+
+  if (alertPanelOpen) renderAlertPanel();
+}
+
+// ── TAB SWITCHING ──
+let currentTab = 'map';
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('content-' + tab).classList.add('active');
+  if (tab === 'missions') renderMissions();
+}
+
+// ── MISSIONS & ALERTS ENGINE ──
+const FRENCH_MONTHS = ['jan','fév','mar','avr','mai','juin','juil','aoû','sep','oct','nov','déc'];
+
+function parseDate(str) {
+  if (!str) return null;
+  const s = str.trim();
+  // "DD mois YYYY" — français complet avec gestion juin/juillet
+  const m = s.match(/^(\d{1,2})\s+([a-zA-Z\u00C0-\u00FF]+)\.?\s+(\d{4})$/i);
+  if (m) {
+    const day = parseInt(m[1]), yr = parseInt(m[3]);
+    const raw = m[2].toLowerCase()
+      .replace(/[éè]/g,'e').replace(/û/g,'u').replace(/â/g,'a')
+      .replace(/î/g,'i').replace(/ô/g,'o').replace(/à/g,'a');
+    // Full-word first to avoid juin/juillet collision
+    const full = {
+      janvier:0,fevrier:1,mars:2,avril:3,mai:4,juin:5,
+      juillet:6,aout:7,septembre:8,octobre:9,novembre:10,decembre:11
+    };
+    if (full[raw] !== undefined) return new Date(yr, full[raw], day);
+    // Ordered prefix match (juil before juin)
+    const pfx = [
+      ['janv',0],['fevr',1],['mars',2],['avri',3],['mai0',4],  // not reached — mai handled above
+      ['juin',5],['juil',6],['aout',7],['sept',8],['octo',9],['nove',10],['dece',11]
+    ];
+    // Special case: "mai" is only 3 chars
+    if (raw === 'mai') return new Date(yr, 4, day);
+    for (const [p, mon] of pfx) {
+      if (raw.startsWith(p)) return new Date(yr, mon, day);
+    }
+    // 3-char safe fallback (excluding jui which is ambiguous)
+    const m3 = {jan:0,fev:1,mar:2,avr:3,aou:7,sep:8,oct:9,nov:10,dec:11};
+    if (m3[raw.substring(0,3)] !== undefined) return new Date(yr, m3[raw.substring(0,3)], day);
+  }
+  // ISO / other formats
+  const d = new Date(s);
+  if (!isNaN(d)) return d;
+  return null;
+}
+
+function daysLeft(endDateStr) {
+  const end = parseDate(endDateStr);
+  if (!end) return null;
+  const now = new Date(); now.setHours(0,0,0,0);
+  end.setHours(0,0,0,0);
+  return Math.round((end - now) / 86400000);
+}
+
+function alertLevel(days) {
+  if (days === null) return null;
+  if (days < 0)  return 'expired';
+  if (days <= 7)  return 'w1';
+  if (days <= 14) return 'w2';
+  if (days <= 21) return 'w3';
+  if (days <= 28) return 'w4';
+  return 'ok';
+}
+
+function alertColor(lvl) {
+  return {w1:'#dc2626',w2:'#ea580c',w3:'#ca8a04',w4:'#16a34a',ok:'#2563eb',expired:'#9ca3af'}[lvl] || '#9ca3af';
+}
+function alertBg(lvl) {
+  return {w1:'#fff1f2',w2:'#fff7ed',w3:'#fefce8',w4:'#f0fdf4',ok:'#eff6ff',expired:'#f9fafb'}[lvl] || '#f9fafb';
+}
+function alertBorder(lvl) {
+  return {w1:'#fecdd3',w2:'#fed7aa',w3:'#fef08a',w4:'#bbf7d0',ok:'#bfdbfe',expired:'#e5e7eb'}[lvl] || '#e5e7eb';
+}
+function alertLabel(days) {
+  if (days === null) return '—';
+  if (days < 0) return `Expiré (${Math.abs(days)}j)`;
+  if (days === 0) return 'Expire aujourd\'hui';
+  if (days <= 7)  return `🔴 ${days}j restants`;
+  if (days <= 14) return `🟠 ${days}j restants`;
+  if (days <= 21) return `🟡 ${days}j restants`;
+  if (days <= 28) return `🟢 ${days}j restants`;
+  return `${days}j restants`;
+}
+
+function getMissionStaff() {
+  // Anyone with a name AND an end date
+  return DATA.filter(r => r.nom && r.fin);
+}
+
+// Update the tab alert badge
+function updateAlertBadge() {
+  const staff = getMissionStaff();
+  const urgent = staff.filter(r => {
+    const dl = daysLeft(r.fin);
+    return dl !== null && dl >= 0 && dl <= 28;
+  }).length;
+  const badge = document.getElementById('alert-badge');
+  if (urgent > 0) {
+    badge.textContent = urgent;
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ── GANTT RENDERING ──
+function renderGantt(staff) {
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Calculate span: earliest start to latest end + buffer
+  let minD = new Date(today); minD.setDate(minD.getDate() - 7);
+  let maxD = new Date(today); maxD.setDate(maxD.getDate() + 90);
+  staff.forEach(r => {
+    const s = parseDate(r.deb), e = parseDate(r.fin);
+    if (s && s < minD) minD = new Date(s);
+    if (e && e > maxD) maxD = new Date(e);
+  });
+  maxD.setDate(maxD.getDate() + 14);
+  const totalDays = Math.round((maxD - minD) / 86400000);
+
+  function pct(d) { return Math.max(0, Math.min(100, Math.round((d - minD) / 86400000 / totalDays * 100))); }
+
+  // Month headers
+  let months = [];
+  let cur = new Date(minD.getFullYear(), minD.getMonth(), 1);
+  while (cur <= maxD) {
+    const start = Math.max(0, pct(cur));
+    const nextMon = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    const end = Math.min(100, pct(nextMon));
+    months.push({label: FRENCH_MONTHS[cur.getMonth()] + ' ' + cur.getFullYear(), left: start, width: end - start});
+    cur = nextMon;
+  }
+
+  const monthRow = months.map(m =>
+    `<div style="position:absolute;left:${m.left}%;width:${m.width}%;font-size:10px;font-family:var(--mono);color:var(--muted);padding:4px 0;text-align:center;border-right:1px solid var(--border)">${m.label}</div>`
+  ).join('');
+
+  const todayPct = pct(today);
+  const todayLine = `<div style="position:absolute;left:${todayPct}%;top:0;bottom:0;width:2px;background:#dc2626;opacity:0.5;z-index:2;pointer-events:none"></div>`;
+
+  const rows = staff.map(r => {
+    const start = parseDate(r.deb) || today;
+    const end   = parseDate(r.fin) || new Date(today.getTime() + 30*86400000);
+    const dl = daysLeft(r.fin);
+    const lvl = alertLevel(dl);
+    const color = alertColor(lvl);
+    const left = pct(start), width = Math.max(1, pct(end) - pct(start));
+    const dlLabel = dl === null ? '—' : dl < 0 ? `exp.` : `${dl}j`;
+    const dlClass = `d-${lvl || 'ok'}`;
+
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.04)">
+      <div style="width:180px;flex-shrink:0;overflow:hidden">
+        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:var(--mono)">${r.loc} · ${r.fn.substring(0,22)}${r.fn.length>22?'…':''}</div>
+      </div>
+      <div style="flex:1;height:28px;position:relative;background:var(--bg3);border-radius:6px;overflow:visible;min-width:0">
+        ${todayLine}
+        <div style="position:absolute;left:${left}%;width:${width}%;height:100%;background:${color};border-radius:6px;opacity:0.85;display:flex;align-items:center;padding:0 8px;font-size:10px;color:white;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:1">${r.nom}</div>
+      </div>
+      <div style="width:56px;flex-shrink:0;text-align:right">
+        <span class="days-badge ${dlClass}">${dlLabel}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="gantt-section">
+    <div class="gantt-header">
+      <div>
+        <div class="gantt-title">Timeline des missions</div>
+        <div class="gantt-sub">Ligne rouge = aujourd'hui · ${staff.length} missions actives</div>
+      </div>
+    </div>
+    <div class="gantt-wrap">
+      <div style="position:relative;height:28px;margin-bottom:4px;min-width:700px">${monthRow}</div>
+      <div style="min-width:700px">${rows}</div>
+    </div>
+  </div>`;
+}
+
+// ── DETAIL TABLE ──
+let detailFilter = 'all';
+function renderDetailTable(staff) {
+  const filtered = detailFilter === 'all' ? staff :
+    staff.filter(r => { const lvl = alertLevel(daysLeft(r.fin)); return lvl === detailFilter; });
+
+  // Sort: soonest end date first
+  const sorted = [...filtered].sort((a,b) => {
+    const da = daysLeft(a.fin), db = daysLeft(b.fin);
+    if (da === null && db === null) return 0;
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return da - db;
+  });
+
+  const filters = [
+    {k:'all',label:'Tous'},
+    {k:'w1',label:'🔴 ≤1 sem'},
+    {k:'w2',label:'🟠 ≤2 sem'},
+    {k:'w3',label:'🟡 ≤3 sem'},
+    {k:'w4',label:'🟢 ≤4 sem'},
+    {k:'ok',label:'✅ OK'},
+  ];
+  const filterBtns = filters.map(f =>
+    `<button class="df-btn${detailFilter===f.k?' active':''}" onclick="setDetailFilter('${f.k}')">${f.label}</button>`
+  ).join('');
+
+  const rows = sorted.map(r => {
+    const dl = daysLeft(r.fin);
+    const lvl = alertLevel(dl);
+    const pctMission = (() => {
+      const s = parseDate(r.deb), e = parseDate(r.fin);
+      if (!s || !e) return null;
+      const total = Math.round((e - s) / 86400000);
+      const elapsed = Math.round((new Date() - s) / 86400000);
+      return Math.max(0, Math.min(100, Math.round(elapsed / total * 100)));
+    })();
+    const color = alertColor(lvl);
+    const dlLabel = dl === null ? '—' : dl < 0 ? `Expiré (${Math.abs(dl)}j)` : alertLabel(dl);
+    const dlClass = `d-${lvl || 'ok'}`;
+
+    const progHtml = pctMission !== null
+      ? `<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${pctMission}%;background:${color}"></div></div><div class="prog-pct">${pctMission}%</div></div>`
+      : '<span style="color:var(--muted);font-size:11px">—</span>';
+
+    return `<tr>
+      <td class="name-cell">${r.nom}</td>
+      <td class="fn-cell">${r.fn}</td>
+      <td>${r.loc}</td>
+      <td><span style="font-size:11px;color:var(--muted);font-family:var(--mono)">${r.deb||'—'}</span></td>
+      <td><span style="font-size:11px;color:var(--muted);font-family:var(--mono)">${r.fin||'—'}</span></td>
+      <td>${progHtml}</td>
+      <td><span class="days-badge ${dlClass}">${dlLabel}</span></td>
+    </tr>`;
+  }).join('');
+
+  const emptyMsg = sorted.length === 0
+    ? `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Aucun résultat pour ce filtre</td></tr>` : '';
+
+  return `<div class="detail-section">
+    <div class="detail-header">
+      <div class="detail-title">Rapport détaillé — fin de mission</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="detail-filter">${filterBtns}</div>
+        <div class="export-wrap">
+          <button class="export-btn" onclick="toggleExportMenu(event)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export ▾
+          </button>
+          <div class="export-dropdown" id="export-dropdown">
+            <div class="export-opt" onclick="exportExcel()">
+              <span class="export-opt-icon">📊</span>
+              <div><div class="export-opt-label">Excel</div><div class="export-opt-sub">.csv — tableur</div></div>
+            </div>
+            <div class="export-opt" onclick="exportPDF()">
+              <span class="export-opt-icon">📄</span>
+              <div><div class="export-opt-label">PDF</div><div class="export-opt-sub">impression / .pdf</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="detail-tbl">
+        <thead><tr>
+          <th>Nom</th><th>Fonction</th><th>Site</th>
+          <th>Début</th><th>Fin prévue</th><th style="width:150px">Avancement</th><th>Alerte</th>
+        </tr></thead>
+        <tbody>${rows}${emptyMsg}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function setDetailFilter(f) {
+  detailFilter = f;
+  renderMissions();
+}
+
+// ── ALERT SUMMARY CARDS ──
+function renderAlertCards(staff) {
+  const counts = {w1:0,w2:0,w3:0,w4:0,expired:0};
+  staff.forEach(r => {
+    const lvl = alertLevel(daysLeft(r.fin));
+    if (lvl && counts[lvl] !== undefined) counts[lvl]++;
+  });
+
+  const cards = [
+    {k:'w1', icon:'🚨', label:'Fin ≤ 1 semaine',  cls:'ac-w1'},
+    {k:'w2', icon:'⚠️', label:'Fin ≤ 2 semaines', cls:'ac-w2'},
+    {k:'w3', icon:'🕐', label:'Fin ≤ 3 semaines', cls:'ac-w3'},
+    {k:'w4', icon:'📅', label:'Fin ≤ 4 semaines', cls:'ac-w4'},
+    {k:'expired', icon:'⏰', label:'Missions expirées', cls:'ac-expired'},
+  ].map(c => `<div class="alert-card ${c.cls}" style="cursor:pointer" onclick="setDetailFilter('${c.k}')">
+    <div class="ac-icon">${c.icon}</div>
+    <div><div class="ac-num">${counts[c.k]}</div><div class="ac-lbl">${c.label}</div></div>
+  </div>`).join('');
+
+  return `<div class="alert-strip">${cards}</div>`;
+}
+
+// ── RENDER ALL MISSIONS TAB ──
+function renderMissions() {
+  const staff = getMissionStaff();
+  const body = document.getElementById('missions-body');
+  if (!staff.length) {
+    body.innerHTML = `<div style="text-align:center;padding:60px;color:var(--muted)">
+      <div style="font-size:40px;margin-bottom:12px">📭</div>
+      <div style="font-size:15px;font-weight:500">Aucune mission avec dates renseignées</div>
+      <div style="font-size:12px;margin-top:6px">Chargez un fichier Excel avec les colonnes Nom / Début / Fin</div>
+    </div>`;
+    return;
+  }
+
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+
+  body.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:16px;font-weight:600">Suivi des fins de mission</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px">${staff.length} missions suivies · Mis à jour le ${dateStr}</div>
+      </div>
+    </div>
+    ${renderAlertCards(staff)}
+    ${renderGantt(staff)}
+    ${renderDetailTable(staff)}
+  `;
+}
+
+
+// ── EXPORT ──
+function toggleExportMenu(e) {
+  e.stopPropagation();
+  document.getElementById('export-dropdown').classList.toggle('open');
+}
+document.addEventListener('click', function() {
+  var dd = document.getElementById('export-dropdown');
+  if (dd) dd.classList.remove('open');
+});
+
+function getExportRows() {
+  var staff = getMissionStaff();
+  var filtered = detailFilter === 'all' ? staff
+    : staff.filter(function(r) { return alertLevel(daysLeft(r.fin)) === detailFilter; });
+  return filtered.slice().sort(function(a, b) {
+    var da = daysLeft(a.fin), db = daysLeft(b.fin);
+    if (da === null && db === null) return 0;
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return da - db;
+  });
+}
+
+function exportExcel() {
+  document.getElementById('export-dropdown').classList.remove('open');
+  var rows = getExportRows();
+  var hdrs = ['Nom','Fonction','Site','Niveau','Type','Debut mission','Fin mission','Jours restants','Alerte','Avancement'];
+  var lvlLbl = {w1:'<= 1 semaine',w2:'<= 2 semaines',w3:'<= 3 semaines',w4:'<= 4 semaines',ok:'OK',expired:'Expire'};
+  var lines = [hdrs.join(';')];
+  rows.forEach(function(r) {
+    var dl = daysLeft(r.fin);
+    var lvl = alertLevel(dl);
+    var dlTxt = dl === null ? '' : dl < 0 ? 'Expire (' + Math.abs(dl) + 'j)' : dl + 'j';
+    var alTxt = lvlLbl[lvl] || '';
+    var s2 = parseDate(r.deb), e2 = parseDate(r.fin);
+    var pct = '';
+    if (s2 && e2) {
+      var tot = Math.round((e2 - s2) / 86400000);
+      var ela = Math.round((new Date() - s2) / 86400000);
+      if (tot > 0) pct = Math.max(0, Math.min(100, Math.round(ela / tot * 100))) + '%';
+    }
+    lines.push([r.nom||'', r.fn||'', r.loc||'', r.niveau||'', r.type||'',
+      r.deb||'', r.fin||'', dlTxt, alTxt, pct
+    ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';'));
+  });
+  var blob = new Blob(['\uFEFF' + lines.join('\n')], {type: 'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var d = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-');
+  a.href = url; a.download = 'Rapport_Missions_EVD_' + d + '.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+  showToast('Rapport Excel telecharge', 'success');
+}
+
+function exportPDF() {
+  document.getElementById('export-dropdown').classList.remove('open');
+  var rows = getExportRows();
+  var today = new Date().toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
+  var urgent = rows.filter(function(r) { return ['w1','w2','w3'].includes(alertLevel(daysLeft(r.fin))); }).length;
+  var lvlColors = {w1:'#dc2626',w2:'#ea580c',w3:'#ca8a04',w4:'#16a34a',ok:'#2563eb',expired:'#9ca3af'};
+  var lvlLabels = {w1:'<= 1 sem',w2:'<= 2 sem',w3:'<= 3 sem',w4:'<= 4 sem',ok:'OK',expired:'Expire'};
+
+  var trows = '';
+  rows.forEach(function(r) {
+    var dl = daysLeft(r.fin);
+    var lvl = alertLevel(dl) || 'ok';
+    var col = lvlColors[lvl] || '#9ca3af';
+    var lbl = lvlLabels[lvl] || '';
+    var dlTxt = dl === null ? '-' : dl < 0 ? 'Expire' : dl + 'j';
+    var pctNum = null;
+    var s2 = parseDate(r.deb), e2 = parseDate(r.fin);
+    if (s2 && e2) {
+      var tot = Math.round((e2 - s2) / 86400000);
+      var ela = Math.round((new Date() - s2) / 86400000);
+      if (tot > 0) pctNum = Math.max(0, Math.min(100, Math.round(ela / tot * 100)));
+    }
+    var prog = pctNum !== null
+      ? '<div style="width:70px;height:5px;background:#e5e7eb;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:4px"><div style="width:' + pctNum + '%;height:100%;background:' + col + ';border-radius:3px"></div></div>' + pctNum + '%'
+      : '-';
+    trows += '<tr>'
+      + '<td style="font-weight:500">' + (r.nom||'') + '</td>'
+      + '<td style="color:#6b7280;font-size:11px">' + (r.fn||'') + '</td>'
+      + '<td>' + (r.loc||'') + '</td>'
+      + '<td style="font-size:11px;color:#6b7280">' + (r.deb||'-') + '</td>'
+      + '<td style="font-size:11px;color:#6b7280">' + (r.fin||'-') + '</td>'
+      + '<td>' + prog + '</td>'
+      + '<td><span style="background:' + col + '1a;color:' + col + ';border:1px solid ' + col + '40;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700">' + dlTxt + ' - ' + lbl + '</span></td>'
+      + '</tr>';
+  });
+
+  var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport Missions EVD DRC</title>'
+    + '<style>'
+    + 'body{font-family:Arial,sans-serif;margin:0;padding:28px;color:#1a1d23;font-size:12px}'
+    + '.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #0066ff}'
+    + '.logo{width:34px;height:34px;border-radius:7px;background:linear-gradient(135deg,#7c3aed,#0066ff);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:12px;margin-right:10px}'
+    + 'h1{font-size:17px;font-weight:700;margin:0 0 3px}'
+    + '.sub{font-size:10px;color:#6b7280;font-family:monospace}'
+    + '.sum{display:flex;gap:12px;margin-bottom:20px}'
+    + '.sc{background:#f7f8fa;border:1px solid #e5e7eb;border-radius:8px;padding:9px 14px;flex:1}'
+    + '.sn{font-size:20px;font-weight:700;font-family:monospace}'
+    + '.sl{font-size:9px;color:#6b7280;margin-top:2px;text-transform:uppercase;letter-spacing:.06em}'
+    + 'table{width:100%;border-collapse:collapse}'
+    + 'th{background:#f7f8fa;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;padding:7px 10px;text-align:left;border-bottom:1px solid #e5e7eb}'
+    + 'td{padding:8px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle}'
+    + 'tr:nth-child(even) td{background:#fafafa}'
+    + '.ftr{margin-top:20px;font-size:9px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb;padding-top:10px}'
+    + '@media print{@page{margin:1.2cm}}'
+    + '</style></head><body>'
+    + '<div class="hdr"><div style="display:flex;align-items:center"><div class="logo">OSL</div>'
+    + '<div><h1>Rapport Missions - EVD DRC</h1><div class="sub">' + today + '</div></div></div></div>'
+    + '<div class="sum">'
+    + '<div class="sc"><div class="sn" style="color:#1a1d23">' + rows.length + '</div><div class="sl">Missions</div></div>'
+    + '<div class="sc"><div class="sn" style="color:#dc2626">' + urgent + '</div><div class="sl">Alertes critiques</div></div>'
+    + '<div class="sc"><div class="sn" style="color:#16a34a">' + (rows.length - urgent) + '</div><div class="sl">Missions OK</div></div>'
+    + '</div>'
+    + '<table><thead><tr><th>Nom</th><th>Fonction</th><th>Site</th><th>Debut</th><th>Fin</th><th>Avancement</th><th>Alerte</th></tr></thead>'
+    + '<tbody>' + trows + '</tbody></table>'
+    + '<div class="ftr">OSL EVD DRC - Plan RH - ' + today + '</div>'
+    + '<scr' + 'ipt>window.onload=function(){window.print();}<\/scr' + 'ipt>'
+    + '</body></html>';
+
+  var blob = new Blob([doc], {type: 'text/html;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var win = window.open(url, '_blank');
+  if (!win) showToast('Autorisez les popups pour le PDF', 'error');
+  else showToast('PDF pret - Ctrl+P pour sauvegarder', 'success');
+  setTimeout(function() { URL.revokeObjectURL(url); }, 15000);
+}
+
+// ── Init ──
+loadData(DEFAULT_ROWS, null);
+document.getElementById('header-sub').textContent =
+  `Plan RH EVD DRC · 24 mai 2026 · ${LOCATIONS.length} sites · ${DEFAULT_ROWS.reduce((s,r)=>s+r.n,0)} postes`;
+</script>
+</body>
+</html>
