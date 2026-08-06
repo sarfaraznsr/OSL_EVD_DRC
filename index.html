@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>OSL · Plan RH EVD DRC — Carte &amp; Suivi missions</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<html lang="fr"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan RH BVD DRC - UGA - Carte et Suivi missions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&amp;family=DM+Sans:wght@300;400;500;600&amp;display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root {
   --bg:#f0f2f5;--bg2:#ffffff;--bg3:#f7f8fa;--border:rgba(0,0,0,0.08);
@@ -249,6 +247,27 @@ table.detail-tbl tr:hover td{background:rgba(0,102,255,0.02)}
 .export-opt-icon{font-size:16px;flex-shrink:0}
 .export-opt-label{font-weight:500}
 .export-opt-sub{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:1px}
+
+.hdr-btn-print{background:#f59e0b;color:white}
+.hdr-btn-print:hover{background:#d97706}
+
+/* ── PASSWORD MODAL ── */
+.pwd-overlay{display:none;position:fixed;inset:0;z-index:10001;background:rgba(15,17,23,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center}
+.pwd-overlay.show{display:flex}
+.pwd-modal{background:white;border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,0.2);width:360px;max-width:calc(100vw - 32px);padding:28px;animation:modalIn .18s ease}
+.pwd-title{font-size:15px;font-weight:600;margin-bottom:6px}
+.pwd-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+.pwd-input-wrap{position:relative;margin-bottom:8px}
+.pwd-input{width:100%;padding:10px 40px 10px 14px;border-radius:var(--r);border:1.5px solid var(--border);font-family:var(--font);font-size:13px;outline:none;transition:border-color .15s;box-sizing:border-box}
+.pwd-input:focus{border-color:var(--accent)}
+.pwd-input.error{border-color:#dc2626;background:#fff5f5}
+.pwd-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);padding:0;display:flex;align-items:center}
+.pwd-error{font-size:11px;color:#dc2626;margin-bottom:12px;min-height:16px}
+.pwd-actions{display:flex;gap:8px;justify-content:flex-end}
+.pwd-cancel{padding:8px 16px;border-radius:var(--r);border:1px solid var(--border);background:white;font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;color:var(--text)}
+.pwd-cancel:hover{background:var(--bg3)}
+.pwd-confirm{padding:8px 16px;border-radius:var(--r);border:none;background:var(--accent);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;color:white}
+.pwd-confirm:hover{background:#0052cc}
 </style>
 </head>
 <body>
@@ -260,7 +279,27 @@ table.detail-tbl tr:hover td{background:rgba(0,102,255,0.02)}
     <div class="drop-sub">Colonnes : Niveau · Localisation · Fonction · Catégorie · Type · Status · Nombre · Nom</div>
   </div>
 </div>
-<div class="toast" id="toast"></div>
+<div class="toast success" id="toast">✓ Plan RH EVD DRC as of 22 Juin 2026.xlsx chargé(e)s — 8 sites, 74 postes</div>
+
+<!-- Password modal -->
+<div class="pwd-overlay" id="pwd-overlay" onclick="if(event.target===this)closePwd()">
+  <div class="pwd-modal">
+    <div class="pwd-title">🔒 Accès restreint</div>
+    <div class="pwd-sub">Entrez le mot de passe pour mettre à jour les données.</div>
+    <div class="pwd-input-wrap">
+      <input class="pwd-input" type="password" id="pwd-input" placeholder="Mot de passe" onkeydown="if(event.key==='Enter')checkPwd()" oninput="clearPwdError()">
+      <button class="pwd-toggle" onclick="togglePwdVisibility()" tabindex="-1">
+        <svg id="pwd-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      </button>
+    </div>
+    <div class="pwd-error" id="pwd-error"></div>
+    <div class="pwd-actions">
+      <button class="pwd-cancel" onclick="closePwd()">Annuler</button>
+      <button class="pwd-confirm" onclick="checkPwd()">Confirmer</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- Share modal -->
 <div class="modal-overlay" id="share-modal" onclick="if(event.target===this)closeShare()">
@@ -271,7 +310,7 @@ table.detail-tbl tr:hover td{background:rgba(0,102,255,0.02)}
         <div class="modal-sub" id="share-modal-sub">—</div>
       </div>
       <button class="modal-close" onclick="closeShare()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
     <div class="modal-body">
@@ -310,8 +349,8 @@ table.detail-tbl tr:hover td{background:rgba(0,102,255,0.02)}
   <div class="header-left">
     <div class="logo">OSL</div>
     <div>
-      <div class="header-title">Plan RH EVD DRC — Carte de terrain</div>
-      <div class="header-sub" id="header-sub">Chargement…</div>
+      <div class="header-title">Plan RH BVD DRC - UGA - Carte et Suivi missions</div>
+      <div class="header-sub" id="header-sub">8 sites · 74 postes · 0 staffés · 22/06/2026 · sauvegardé 22-06-2026 15h26</div>
     </div>
   </div>
   <div class="header-right">
@@ -320,18 +359,19 @@ table.detail-tbl tr:hover td{background:rgba(0,102,255,0.02)}
       <button class="tile-btn active" id="btn-osm" onclick="setTile('osm')">Standard</button>
       <button class="tile-btn" id="btn-sat" onclick="setTile('sat')">Satellite</button>
     </div>
-    <div class="upload-badge" id="upload-badge"></div>
-    <label class="hdr-btn hdr-btn-primary" for="file-input">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <div class="upload-badge visible" id="upload-badge">Plan RH EVD DRC as of 22 Juin 2026.xlsx</div>
+    <button class="hdr-btn hdr-btn-primary" onclick="openPwd()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
       Mettre à jour
-    </label>
-    <input type="file" id="file-input" accept=".xlsx,.xls"/>
-    <button class="hdr-btn hdr-btn-save" id="save-btn" onclick="saveHTML()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-      Sauvegarde
     </button>
+    <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none">
+    <button class="hdr-btn hdr-btn-print" onclick="printRH()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+      Imprimer plan RH
+    </button>
+    <button class="hdr-btn hdr-btn-save saving" id="save-btn" onclick="saveHTML()">⏳ Génération…</button>
     <button class="hdr-btn hdr-btn-share" id="share-btn" onclick="openShare()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
       Partager
     </button>
   </div>
@@ -340,13 +380,13 @@ table.detail-tbl tr:hover td{background:rgba(0,102,255,0.02)}
 <div class="app-wrap">
 <div class="tab-bar">
   <div class="tab active" id="tab-map" onclick="switchTab('map')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
     Carte terrain
   </div>
   <div class="tab" id="tab-missions" onclick="switchTab('missions')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
     Suivi missions
-    <span class="tab-badge" id="alert-badge" style="background:#fee2e2;color:#dc2626;display:none">0</span>
+    <span class="tab-badge" id="alert-badge" style="background: rgb(254, 226, 226); color: rgb(220, 38, 38); display: inline-flex;">5</span>
   </div>
 </div>
 
@@ -356,41 +396,73 @@ table.detail-tbl tr:hover td{background:rgba(0,102,255,0.02)}
     <div class="sb-sec">
       <div class="sb-lbl">Résumé</div>
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-num sn-tot" id="s-total">—</div><div class="stat-lbl">Total postes</div></div>
-        <div class="stat-card"><div class="stat-num sn-sit" id="s-sites">—</div><div class="stat-lbl">Sites actifs</div></div>
-        <div class="stat-card"><div class="stat-num sn-intl" id="s-intl">—</div><div class="stat-lbl">Internationaux</div></div>
-        <div class="stat-card"><div class="stat-num sn-natl" id="s-natl">—</div><div class="stat-lbl">Nationaux</div></div>
+        <div class="stat-card"><div class="stat-num sn-tot" id="s-total">72</div><div class="stat-lbl">Total postes</div></div>
+        <div class="stat-card"><div class="stat-num sn-sit" id="s-sites">8</div><div class="stat-lbl">Sites actifs</div></div>
+        <div class="stat-card"><div class="stat-num sn-intl" id="s-intl">19</div><div class="stat-lbl">Internationaux</div></div>
+        <div class="stat-card"><div class="stat-num sn-natl" id="s-natl">53</div><div class="stat-lbl">Nationaux</div></div>
       </div>
     </div>
     <div class="sb-sec-scroll">
       <div class="sb-lbl">Filtrer par fonction</div>
-      <div class="filter-list" id="filter-list"></div>
+      <div class="filter-list" id="filter-list"><div class="fi active" data-cat="Coordination"><div class="fi-dot" style="background:#7c3aed"></div><div class="fi-name">Coordination</div><div class="fi-cnt">4</div></div><div class="fi active" data-cat="Supply Chain"><div class="fi-dot" style="background:#0891b2"></div><div class="fi-name">Supply Chain</div><div class="fi-cnt">17</div></div><div class="fi active" data-cat="Warehouse"><div class="fi-dot" style="background:#db2777"></div><div class="fi-name">Warehouse</div><div class="fi-cnt">4</div></div><div class="fi active" data-cat="Procurement"><div class="fi-dot" style="background:#64748b"></div><div class="fi-name">Procurement</div><div class="fi-cnt">3</div></div><div class="fi active" data-cat="Health Logistics"><div class="fi-dot" style="background:#ea580c"></div><div class="fi-name">Health Logistics</div><div class="fi-cnt">12</div></div><div class="fi active" data-cat="Safe &amp; Dignified Burial"><div class="fi-dot" style="background:hsl(223,55%,45%)"></div><div class="fi-name">Safe &amp; Dignified Burial</div><div class="fi-cnt">1</div></div><div class="fi active" data-cat="ETC"><div class="fi-dot" style="background:hsl(220,55%,45%)"></div><div class="fi-name">ETC</div><div class="fi-cnt">1</div></div><div class="fi active" data-cat="Health Logistics (ETCs, SDB)"><div class="fi-dot" style="background:#ea580c"></div><div class="fi-name">Health Logistics (ETCs, SDB)</div><div class="fi-cnt">1</div></div><div class="fi active" data-cat="Operations Support"><div class="fi-dot" style="background:#0066ff"></div><div class="fi-name">Operations Support</div><div class="fi-cnt">13</div></div><div class="fi active" data-cat="Fleet management"><div class="fi-dot" style="background:#ca8a04"></div><div class="fi-name">Fleet management</div><div class="fi-cnt">1</div></div><div class="fi active" data-cat="Transport"><div class="fi-dot" style="background:#16a34a"></div><div class="fi-name">Transport</div><div class="fi-cnt">15</div></div></div>
     </div>
     <div class="sb-lbl" style="padding:12px 15px 5px;flex-shrink:0">Sites</div>
-    <div class="loc-list" id="loc-list"></div>
+    <div class="loc-list" id="loc-list"><div class="loc-item" data-loc="Kinshasa"><div class="loc-name">Kinshasa</div><div class="loc-level">Coordination CO / dispatch · <span style="color:var(--green)">0</span>/5 staffés</div><div class="loc-bar"><div class="loc-seg" style="flex:1;background:#7c3aed"></div><div class="loc-seg" style="flex:1;background:#0891b2"></div><div class="loc-seg" style="flex:2;background:#db2777"></div><div class="loc-seg" style="flex:1;background:#64748b"></div></div></div><div class="loc-item" data-loc="Bunia"><div class="loc-name">Bunia</div><div class="loc-level">Coordination EVD · <span style="color:var(--green)">0</span>/23 staffés</div><div class="loc-bar"><div class="loc-seg" style="flex:2;background:#7c3aed"></div><div class="loc-seg" style="flex:3;background:#ea580c"></div><div class="loc-seg" style="flex:1;background:hsl(223,55%,45%)"></div><div class="loc-seg" style="flex:1;background:hsl(220,55%,45%)"></div><div class="loc-seg" style="flex:1;background:#ea580c"></div><div class="loc-seg" style="flex:2;background:#0066ff"></div><div class="loc-seg" style="flex:7;background:#0891b2"></div><div class="loc-seg" style="flex:1;background:#ca8a04"></div><div class="loc-seg" style="flex:2;background:#16a34a"></div><div class="loc-seg" style="flex:2;background:#db2777"></div><div class="loc-seg" style="flex:1;background:#64748b"></div></div></div><div class="loc-item" data-loc="Mongbwalo"><div class="loc-name">Mongbwalo</div><div class="loc-level">Sous Coordination · <span style="color:var(--green)">0</span>/8 staffés</div><div class="loc-bar"><div class="loc-seg" style="flex:2;background:#0066ff"></div><div class="loc-seg" style="flex:2;background:#ea580c"></div><div class="loc-seg" style="flex:2;background:#0891b2"></div><div class="loc-seg" style="flex:2;background:#16a34a"></div></div></div><div class="loc-item" data-loc="Rwampara"><div class="loc-name">Rwampara</div><div class="loc-level">Sous Coordination · <span style="color:var(--green)">0</span>/8 staffés</div><div class="loc-bar"><div class="loc-seg" style="flex:2;background:#0066ff"></div><div class="loc-seg" style="flex:2;background:#ea580c"></div><div class="loc-seg" style="flex:2;background:#0891b2"></div><div class="loc-seg" style="flex:2;background:#16a34a"></div></div></div><div class="loc-item" data-loc="Goma"><div class="loc-name">Goma</div><div class="loc-level">Sous Coordination · <span style="color:var(--green)">0</span>/8 staffés</div><div class="loc-bar"><div class="loc-seg" style="flex:2;background:#0066ff"></div><div class="loc-seg" style="flex:1;background:#ea580c"></div><div class="loc-seg" style="flex:2;background:#0891b2"></div><div class="loc-seg" style="flex:3;background:#16a34a"></div></div></div><div class="loc-item" data-loc="Beni"><div class="loc-name">Beni</div><div class="loc-level">Sous Coordination · <span style="color:var(--green)">0</span>/6 staffés</div><div class="loc-bar"><div class="loc-seg" style="flex:2;background:#0066ff"></div><div class="loc-seg" style="flex:1;background:#ea580c"></div><div class="loc-seg" style="flex:1;background:#0891b2"></div><div class="loc-seg" style="flex:2;background:#16a34a"></div></div></div><div class="loc-item" data-loc="Butembo"><div class="loc-name">Butembo</div><div class="loc-level">Sous Coordination · <span style="color:var(--green)">0</span>/6 staffés</div><div class="loc-bar"><div class="loc-seg" style="flex:2;background:#0066ff"></div><div class="loc-seg" style="flex:1;background:#ea580c"></div><div class="loc-seg" style="flex:1;background:#0891b2"></div><div class="loc-seg" style="flex:2;background:#16a34a"></div></div></div><div class="loc-item" data-loc="Uganda, Kampala"><div class="loc-name">Uganda, Kampala</div><div class="loc-level">Coordination · <span style="color:var(--green)">0</span>/8 staffés</div><div class="loc-bar"><div class="loc-seg" style="flex:1;background:#7c3aed"></div><div class="loc-seg" style="flex:2;background:#ea580c"></div><div class="loc-seg" style="flex:1;background:#0066ff"></div><div class="loc-seg" style="flex:1;background:#0891b2"></div><div class="loc-seg" style="flex:1;background:#64748b"></div><div class="loc-seg" style="flex:2;background:#16a34a"></div></div></div></div>
   </div>
   <div class="map-wrap">
-    <div id="map"></div>
+    <div id="map" class="leaflet-container leaflet-touch leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom" tabindex="0" style="position: relative;"><div class="leaflet-pane leaflet-map-pane" style="transform: translate3d(0px, 0px, 0px);"><div class="leaflet-pane leaflet-tile-pane"><div class="leaflet-layer " style="z-index: 1; opacity: 1;"><div class="leaflet-tile-container leaflet-zoom-animated" style="z-index: 19; transform: translate3d(0px, 0px, 0px) scale(1);"><img alt="" src="https://b.basemaps.cartocdn.com/rastertiles/voyager/7/74/63.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(473px, 156px, 0px); opacity: 1;"><img alt="" src="https://c.basemaps.cartocdn.com/rastertiles/voyager/7/74/64.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(473px, 412px, 0px); opacity: 1;"><img alt="" src="https://a.basemaps.cartocdn.com/rastertiles/voyager/7/73/63.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(217px, 156px, 0px); opacity: 1;"><img alt="" src="https://c.basemaps.cartocdn.com/rastertiles/voyager/7/75/63.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(729px, 156px, 0px); opacity: 1;"><img alt="" src="https://b.basemaps.cartocdn.com/rastertiles/voyager/7/73/64.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(217px, 412px, 0px); opacity: 1;"><img alt="" src="https://d.basemaps.cartocdn.com/rastertiles/voyager/7/75/64.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(729px, 412px, 0px); opacity: 1;"><img alt="" src="https://a.basemaps.cartocdn.com/rastertiles/voyager/7/74/62.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(473px, -100px, 0px); opacity: 1;"><img alt="" src="https://d.basemaps.cartocdn.com/rastertiles/voyager/7/74/65.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(473px, 668px, 0px); opacity: 1;"><img alt="" src="https://d.basemaps.cartocdn.com/rastertiles/voyager/7/73/62.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(217px, -100px, 0px); opacity: 1;"><img alt="" src="https://b.basemaps.cartocdn.com/rastertiles/voyager/7/75/62.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(729px, -100px, 0px); opacity: 1;"><img alt="" src="https://c.basemaps.cartocdn.com/rastertiles/voyager/7/73/65.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(217px, 668px, 0px); opacity: 1;"><img alt="" src="https://a.basemaps.cartocdn.com/rastertiles/voyager/7/75/65.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(729px, 668px, 0px); opacity: 1;"><img alt="" src="https://d.basemaps.cartocdn.com/rastertiles/voyager/7/72/63.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-39px, 156px, 0px); opacity: 1;"><img alt="" src="https://d.basemaps.cartocdn.com/rastertiles/voyager/7/76/63.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(985px, 156px, 0px); opacity: 1;"><img alt="" src="https://a.basemaps.cartocdn.com/rastertiles/voyager/7/72/64.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-39px, 412px, 0px); opacity: 1;"><img alt="" src="https://a.basemaps.cartocdn.com/rastertiles/voyager/7/76/64.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(985px, 412px, 0px); opacity: 1;"><img alt="" src="https://c.basemaps.cartocdn.com/rastertiles/voyager/7/72/62.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-39px, -100px, 0px); opacity: 1;"><img alt="" src="https://c.basemaps.cartocdn.com/rastertiles/voyager/7/76/62.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(985px, -100px, 0px); opacity: 1;"><img alt="" src="https://b.basemaps.cartocdn.com/rastertiles/voyager/7/72/65.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(-39px, 668px, 0px); opacity: 1;"><img alt="" src="https://b.basemaps.cartocdn.com/rastertiles/voyager/7/76/65.png" class="leaflet-tile leaflet-tile-loaded" style="width: 256px; height: 256px; transform: translate3d(985px, 668px, 0px); opacity: 1;"></div></div></div><div class="leaflet-pane leaflet-overlay-pane"></div><div class="leaflet-pane leaflet-shadow-pane"></div><div class="leaflet-pane leaflet-marker-pane"><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" aria-describedby="leaflet-tooltip-97" style="margin-left: -29px; margin-top: -29px; width: 58px; height: 58px; transform: translate3d(-692px, 806px, 0px); z-index: 806;"><svg xmlns="http://www.w3.org/2000/svg" width="58" height="58" viewBox="0 0 58 58">
+    <circle cx="29" cy="29" r="29" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"></circle><path d="M29,29 L29.00,0.00 A29,29 0 0,1 56.58,20.04 Z" fill="#7c3aed" stroke="white" stroke-width="1.5"></path><path d="M29,29 L56.58,20.04 A29,29 0 0,1 46.05,52.46 Z" fill="#0891b2" stroke="white" stroke-width="1.5"></path><path d="M29,29 L46.05,52.46 A29,29 0 0,1 1.42,20.04 Z" fill="#db2777" stroke="white" stroke-width="1.5"></path><path d="M29,29 L1.42,20.04 A29,29 0 0,1 29.00,0.00 Z" fill="#64748b" stroke="white" stroke-width="1.5"></path>
+    <circle cx="29" cy="29" r="10.73" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"></circle>
+    <text x="29" y="30" text-anchor="middle" dominant-baseline="middle" font-size="10.1935" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">5</text>
+  </svg></div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" aria-describedby="leaflet-tooltip-100" style="margin-left: -29px; margin-top: -29px; width: 58px; height: 58px; transform: translate3d(666px, 270px, 0px); z-index: 270;"><svg xmlns="http://www.w3.org/2000/svg" width="58" height="58" viewBox="0 0 58 58">
+    <circle cx="29" cy="29" r="29" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"></circle><path d="M29,29 L29.00,0.00 A29,29 0 0,1 44.07,4.22 Z" fill="#7c3aed" stroke="white" stroke-width="1.5"></path><path d="M29,29 L44.07,4.22 A29,29 0 0,1 57.39,23.10 Z" fill="#ea580c" stroke="white" stroke-width="1.5"></path><path d="M29,29 L57.39,23.10 A29,29 0 0,1 57.93,30.98 Z" fill="hsl(223,55%,45%)" stroke="white" stroke-width="1.5"></path><path d="M29,29 L57.93,30.98 A29,29 0 0,1 56.33,38.71 Z" fill="hsl(220,55%,45%)" stroke="white" stroke-width="1.5"></path><path d="M29,29 L56.33,38.71 A29,29 0 0,1 52.69,45.72 Z" fill="#ea580c" stroke="white" stroke-width="1.5"></path><path d="M29,29 L52.69,45.72 A29,29 0 0,1 40.55,55.60 Z" fill="#0066ff" stroke="white" stroke-width="1.5"></path><path d="M29,29 L40.55,55.60 A29,29 0 0,1 0.07,30.98 Z" fill="#0891b2" stroke="white" stroke-width="1.5"></path><path d="M29,29 L0.07,30.98 A29,29 0 0,1 0.61,23.10 Z" fill="#ca8a04" stroke="white" stroke-width="1.5"></path><path d="M29,29 L0.61,23.10 A29,29 0 0,1 7.81,9.21 Z" fill="#16a34a" stroke="white" stroke-width="1.5"></path><path d="M29,29 L7.81,9.21 A29,29 0 0,1 21.18,1.08 Z" fill="#db2777" stroke="white" stroke-width="1.5"></path><path d="M29,29 L21.18,1.08 A29,29 0 0,1 29.00,0.00 Z" fill="#64748b" stroke="white" stroke-width="1.5"></path>
+    <circle cx="29" cy="29" r="10.73" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"></circle>
+    <text x="29" y="30" text-anchor="middle" dominant-baseline="middle" font-size="10.1935" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">23</text>
+  </svg></div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" aria-describedby="leaflet-tooltip-103" style="margin-left: -29px; margin-top: -29px; width: 58px; height: 58px; transform: translate3d(646px, 234px, 0px); z-index: 234;"><svg xmlns="http://www.w3.org/2000/svg" width="58" height="58" viewBox="0 0 58 58">
+    <circle cx="29" cy="29" r="29" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"></circle><path d="M29,29 L29.00,0.00 A29,29 0 0,1 58.00,29.00 Z" fill="#0066ff" stroke="white" stroke-width="1.5"></path><path d="M29,29 L58.00,29.00 A29,29 0 0,1 29.00,58.00 Z" fill="#ea580c" stroke="white" stroke-width="1.5"></path><path d="M29,29 L29.00,58.00 A29,29 0 0,1 0.00,29.00 Z" fill="#0891b2" stroke="white" stroke-width="1.5"></path><path d="M29,29 L0.00,29.00 A29,29 0 0,1 29.00,0.00 Z" fill="#16a34a" stroke="white" stroke-width="1.5"></path>
+    <circle cx="29" cy="29" r="10.73" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"></circle>
+    <text x="29" y="30" text-anchor="middle" dominant-baseline="middle" font-size="10.1935" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">8</text>
+  </svg></div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" aria-describedby="leaflet-tooltip-106" style="margin-left: -29px; margin-top: -29px; width: 58px; height: 58px; transform: translate3d(657px, 286px, 0px); z-index: 286;"><svg xmlns="http://www.w3.org/2000/svg" width="58" height="58" viewBox="0 0 58 58">
+    <circle cx="29" cy="29" r="29" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"></circle><path d="M29,29 L29.00,0.00 A29,29 0 0,1 58.00,29.00 Z" fill="#0066ff" stroke="white" stroke-width="1.5"></path><path d="M29,29 L58.00,29.00 A29,29 0 0,1 29.00,58.00 Z" fill="#ea580c" stroke="white" stroke-width="1.5"></path><path d="M29,29 L29.00,58.00 A29,29 0 0,1 0.00,29.00 Z" fill="#0891b2" stroke="white" stroke-width="1.5"></path><path d="M29,29 L0.00,29.00 A29,29 0 0,1 29.00,0.00 Z" fill="#16a34a" stroke="white" stroke-width="1.5"></path>
+    <circle cx="29" cy="29" r="10.73" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"></circle>
+    <text x="29" y="30" text-anchor="middle" dominant-baseline="middle" font-size="10.1935" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">8</text>
+  </svg></div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" aria-describedby="leaflet-tooltip-109" style="margin-left: -29px; margin-top: -29px; width: 58px; height: 58px; transform: translate3d(573px, 565px, 0px); z-index: 565;"><svg xmlns="http://www.w3.org/2000/svg" width="58" height="58" viewBox="0 0 58 58">
+    <circle cx="29" cy="29" r="29" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"></circle><path d="M29,29 L29.00,0.00 A29,29 0 0,1 58.00,29.00 Z" fill="#0066ff" stroke="white" stroke-width="1.5"></path><path d="M29,29 L58.00,29.00 A29,29 0 0,1 49.51,49.51 Z" fill="#ea580c" stroke="white" stroke-width="1.5"></path><path d="M29,29 L49.51,49.51 A29,29 0 0,1 8.49,49.51 Z" fill="#0891b2" stroke="white" stroke-width="1.5"></path><path d="M29,29 L8.49,49.51 A29,29 0 0,1 29.00,0.00 Z" fill="#16a34a" stroke="white" stroke-width="1.5"></path>
+    <circle cx="29" cy="29" r="10.73" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"></circle>
+    <text x="29" y="30" text-anchor="middle" dominant-baseline="middle" font-size="10.1935" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">8</text>
+  </svg></div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" aria-describedby="leaflet-tooltip-112" style="margin-left: -29px; margin-top: -29px; width: 58px; height: 58px; transform: translate3d(596px, 368px, 0px); z-index: 368;"><svg xmlns="http://www.w3.org/2000/svg" width="58" height="58" viewBox="0 0 58 58">
+    <circle cx="29" cy="29" r="29" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"></circle><path d="M29,29 L29.00,0.00 A29,29 0 0,1 54.11,43.50 Z" fill="#0066ff" stroke="white" stroke-width="1.5"></path><path d="M29,29 L54.11,43.50 A29,29 0 0,1 29.00,58.00 Z" fill="#ea580c" stroke="white" stroke-width="1.5"></path><path d="M29,29 L29.00,58.00 A29,29 0 0,1 3.89,43.50 Z" fill="#0891b2" stroke="white" stroke-width="1.5"></path><path d="M29,29 L3.89,43.50 A29,29 0 0,1 29.00,0.00 Z" fill="#16a34a" stroke="white" stroke-width="1.5"></path>
+    <circle cx="29" cy="29" r="10.73" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"></circle>
+    <text x="29" y="30" text-anchor="middle" dominant-baseline="middle" font-size="10.1935" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">6</text>
+  </svg></div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" aria-describedby="leaflet-tooltip-115" style="margin-left: -29px; margin-top: -29px; width: 58px; height: 58px; transform: translate3d(579px, 399px, 0px); z-index: 399;"><svg xmlns="http://www.w3.org/2000/svg" width="58" height="58" viewBox="0 0 58 58">
+    <circle cx="29" cy="29" r="29" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"></circle><path d="M29,29 L29.00,0.00 A29,29 0 0,1 54.11,43.50 Z" fill="#0066ff" stroke="white" stroke-width="1.5"></path><path d="M29,29 L54.11,43.50 A29,29 0 0,1 29.00,58.00 Z" fill="#ea580c" stroke="white" stroke-width="1.5"></path><path d="M29,29 L29.00,58.00 A29,29 0 0,1 3.89,43.50 Z" fill="#0891b2" stroke="white" stroke-width="1.5"></path><path d="M29,29 L3.89,43.50 A29,29 0 0,1 29.00,0.00 Z" fill="#16a34a" stroke="white" stroke-width="1.5"></path>
+    <circle cx="29" cy="29" r="10.73" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"></circle>
+    <text x="29" y="30" text-anchor="middle" dominant-baseline="middle" font-size="10.1935" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">6</text>
+  </svg></div><div class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" tabindex="0" role="button" aria-describedby="leaflet-tooltip-118" style="margin-left: -29px; margin-top: -29px; width: 58px; height: 58px; transform: translate3d(879px, 380px, 0px); z-index: 380;"><svg xmlns="http://www.w3.org/2000/svg" width="58" height="58" viewBox="0 0 58 58">
+    <circle cx="29" cy="29" r="29" fill="white" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"></circle><path d="M29,29 L29.00,0.00 A29,29 0 0,1 49.51,8.49 Z" fill="#7c3aed" stroke="white" stroke-width="1.5"></path><path d="M29,29 L49.51,8.49 A29,29 0 0,1 49.51,49.51 Z" fill="#ea580c" stroke="white" stroke-width="1.5"></path><path d="M29,29 L49.51,49.51 A29,29 0 0,1 29.00,58.00 Z" fill="#0066ff" stroke="white" stroke-width="1.5"></path><path d="M29,29 L29.00,58.00 A29,29 0 0,1 8.49,49.51 Z" fill="#0891b2" stroke="white" stroke-width="1.5"></path><path d="M29,29 L8.49,49.51 A29,29 0 0,1 0.00,29.00 Z" fill="#64748b" stroke="white" stroke-width="1.5"></path><path d="M29,29 L0.00,29.00 A29,29 0 0,1 29.00,0.00 Z" fill="#16a34a" stroke="white" stroke-width="1.5"></path>
+    <circle cx="29" cy="29" r="10.73" fill="white" stroke="rgba(0,0,0,0.05)" stroke-width="1"></circle>
+    <text x="29" y="30" text-anchor="middle" dominant-baseline="middle" font-size="10.1935" font-family="DM Mono,monospace" fill="#1a1d23" font-weight="600">8</text>
+  </svg></div></div><div class="leaflet-pane leaflet-tooltip-pane"><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-top" role="tooltip" id="leaflet-tooltip-97" style="opacity: 0.9; transform: translate3d(-725px, 752px, 0px);"><div class="site-lbl">KINSHASA</div></div><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-top" role="tooltip" id="leaflet-tooltip-100" style="opacity: 0.9; transform: translate3d(642px, 216px, 0px);"><div class="site-lbl">BUNIA</div></div><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-top" role="tooltip" id="leaflet-tooltip-103" style="opacity: 0.9; transform: translate3d(609px, 180px, 0px);"><div class="site-lbl">MONGBWALO</div></div><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-top" role="tooltip" id="leaflet-tooltip-106" style="opacity: 0.9; transform: translate3d(624px, 232px, 0px);"><div class="site-lbl">RWAMPARA</div></div><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-top" role="tooltip" id="leaflet-tooltip-109" style="opacity: 0.9; transform: translate3d(552px, 511px, 0px);"><div class="site-lbl">GOMA</div></div><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-top" role="tooltip" id="leaflet-tooltip-112" style="opacity: 0.9; transform: translate3d(575px, 314px, 0px);"><div class="site-lbl">BENI</div></div><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-top" role="tooltip" id="leaflet-tooltip-115" style="opacity: 0.9; transform: translate3d(549px, 345px, 0px);"><div class="site-lbl">BUTEMBO</div></div><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-top" role="tooltip" id="leaflet-tooltip-118" style="opacity: 0.9; transform: translate3d(823px, 326px, 0px);"><div class="site-lbl">UGANDA, KAMPALA</div></div></div><div class="leaflet-pane leaflet-popup-pane"></div><div class="leaflet-proxy leaflet-zoom-animated" style="transform: translate3d(19069.2px, 16338.5px, 0px) scale(64);"></div></div><div class="leaflet-control-container"><div class="leaflet-top leaflet-left"><div class="leaflet-control-zoom leaflet-bar leaflet-control"><a class="leaflet-control-zoom-in" href="#" title="Zoom in" role="button" aria-label="Zoom in" aria-disabled="false"><span aria-hidden="true">+</span></a><a class="leaflet-control-zoom-out" href="#" title="Zoom out" role="button" aria-label="Zoom out" aria-disabled="false"><span aria-hidden="true">−</span></a></div></div><div class="leaflet-top leaflet-right"></div><div class="leaflet-bottom leaflet-left"></div><div class="leaflet-bottom leaflet-right"><div class="leaflet-control-attribution leaflet-control"><a href="https://leafletjs.com" title="A JavaScript library for interactive maps"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8" class="leaflet-attribution-flag"><path fill="#4C7BE1" d="M0 0h12v4H0z"></path><path fill="#FFD500" d="M0 4h12v3H0z"></path><path fill="#E0BC00" d="M0 7h12v1H0z"></path></svg> Leaflet</a> <span aria-hidden="true">|</span> © <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a></div></div></div></div>
     <div class="save-info"><div class="save-pill" id="save-pill"></div></div>
     <div class="alert-toggle-wrap">
       <button class="alert-toggle-btn" id="alert-toggle-btn" onclick="toggleAlertPanel()">
-        <span class="atb-dot" id="atb-dot" style="background:#9ca3af"></span>
-        <span id="atb-label">Alertes missions</span>
+        <span class="atb-dot atb-pulse" id="atb-dot" style="background: rgb(234, 88, 12);"></span>
+        <span id="atb-label">4 alertes missions</span>
       </button>
     </div>
     <div class="statusbar">
-      <div class="status-pill"><div class="sp-dot" style="background:#16a34a"></div><span id="status-txt">Prêt</span></div>
+      <div class="status-pill"><div class="sp-dot" style="background:#16a34a"></div><span id="status-txt">74 postes, 0 staffés</span></div>
     </div>
   </div>
   <!-- Right alert panel -->
   <div class="alert-panel" id="alert-panel">
     <div class="ap-header">
       <div class="ap-title">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
         Alertes fins de mission
       </div>
       <button class="ap-close" onclick="toggleAlertPanel()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
     <div class="ap-body" id="ap-body">
@@ -442,8 +514,8 @@ function catColor(cat) {
 }
 
 // ── Status ──
-function statusClass(s){const v=(s||'').toLowerCase();if(v.includes('recrut')||v==='recruited')return 'ok';if(v.includes('identif'))return 'id';return 'va';}
-function statusLabel(s){const v=(s||'').toLowerCase();if(v.includes('recrut')||v==='recruited')return 'STAFFÉ';if(v.includes('identif'))return 'IDENTIF.';return 'VACANT';}
+function statusClass(s){const v=(s||'').toLowerCase();if(v.includes('staffé')||v.includes('staffe')||v.includes('recrut')||v==='recruited')return 'ok';if(v.includes('identif'))return 'id';return 'va';}
+function statusLabel(s){const v=(s||'').toLowerCase();if(v.includes('staffé')||v.includes('staffe')||v.includes('recrut')||v==='recruited')return 'STAFFÉ';if(v.includes('identif'))return 'IDENTIF.';return 'VACANT';}
 
 // ── Map ──
 const TILES={
@@ -479,11 +551,12 @@ function parseXLSX(ab) {
     const r=rows[i];if(!r||r.every(c=>!c))continue;
     if(r[0])curNiveau=String(r[0]).trim();if(r[1])curLoc=String(r[1]).trim();
     const fn=r[2]?String(r[2]).trim():null,cat=r[3]?String(r[3]).trim():'',
-          type=r[4]?String(r[4]).trim():'',stat=r[5]?String(r[5]).trim():'Vacant',
-          n=parseInt(r[6])||1,nom=r[7]?String(r[7]).trim():null,
-          deb=r[8]?String(r[8]).trim():null,fin=r[9]?String(r[9]).trim():null;
+          type=r[4]?String(r[4]).trim():'',origine=r[5]?String(r[5]).trim():null,
+          stat=r[6]?String(r[6]).trim():'Vacant',n=parseInt(r[7])||1,
+          nom=r[8]?String(r[8]).trim():null,
+          deb=r[9]?String(r[9]).trim():null,fin=r[10]?String(r[10]).trim():null;
     if(!fn||!curLoc)continue;
-    result.push({niveau:curNiveau,loc:curLoc,fn,cat,type,stat,n,nom,deb,fin});
+    result.push({niveau:curNiveau,loc:curLoc.trim(),fn,cat,type,origine,stat,n,nom,deb,fin});
   }
   return result;
 }
@@ -501,7 +574,7 @@ function buildFilters(cats){
   activeFilters=new Set(cats);
   const el=document.getElementById('filter-list');el.innerHTML='';
   cats.forEach(cat=>{
-    const count=DATA.filter(r=>r.cat.trim()===cat).reduce((s,r)=>s+r.n,0);
+    const count=DATA.filter(r=>r.cat.trim()===cat).length;
     const item=document.createElement('div');
     item.className='fi active';item.dataset.cat=cat;
     item.innerHTML=`<div class="fi-dot" style="background:${catColor(cat)}"></div><div class="fi-name">${cat}</div><div class="fi-cnt">${count}</div>`;
@@ -523,7 +596,7 @@ function renderLocList(){
     const cats={};vis.forEach(r=>{cats[r.cat]=(cats[r.cat]||0)+r.n;});
     const tot=Object.values(cats).reduce((a,b)=>a+b,0);
     const bar=Object.entries(cats).map(([c,n])=>`<div class="loc-seg" style="flex:${n};background:${catColor(c)}"></div>`).join('');
-    const staffed=vis.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+    const staffed=vis.filter(r=>statusClass(r.stat)==='ok').length;
     const item=document.createElement('div');
     item.className='loc-item'+(selectedLoc===loc.name?' selected':'');item.dataset.loc=loc.name;
     item.innerHTML=`<div class="loc-name">${loc.name}</div><div class="loc-level">${loc.niveau} · <span style="color:var(--green)">${staffed}</span>/${tot} staffés</div><div class="loc-bar">${bar}</div>`;
@@ -569,9 +642,9 @@ function makePieSVG(loc,size){
 function buildPopup(loc){
   const vis=loc.roles.filter(r=>activeFilters.has(r.cat.trim()));
   const grouped={};vis.forEach(r=>{const c=r.cat.trim();if(!grouped[c])grouped[c]=[];grouped[c].push(r);});
-  const total=vis.reduce((s,r)=>s+r.n,0),intl=vis.filter(r=>r.type==='International').reduce((s,r)=>s+r.n,0),
-        natl=vis.filter(r=>r.type!=='International').reduce((s,r)=>s+r.n,0),
-        staffed=vis.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+  const total=vis.length,intl=vis.filter(r=>r.type==='International').length,
+        natl=vis.filter(r=>r.type!=='International').length,
+        staffed=vis.filter(r=>statusClass(r.stat)==='ok').length;
   let catHtml='';
   Object.entries(grouped).forEach(([cat,roles])=>{
     catHtml+=`<div class="popup-cat-ttl" style="color:${catColor(cat)}">${cat}</div>`;
@@ -579,7 +652,8 @@ function buildPopup(loc){
       const sc=statusClass(r.stat),sl=statusLabel(r.stat),fnLabel=r.n>1?`${r.fn} ×${r.n}`:r.fn;
       const nomLine=r.nom?`<div class="role-name">👤 ${r.nom}</div>`:'';
       const dateLine=(r.deb||r.fin)?`<div class="role-dates">${r.deb||''}${r.deb&&r.fin?' → ':''}${r.fin||''}</div>`:'';
-      catHtml+=`<div class="popup-role"><span class="role-st st-${sc}">${sl}</span><div class="role-info"><div class="role-fn">${fnLabel}</div>${nomLine}${dateLine}</div><span class="role-type">${r.type}</span></div>`;
+      const origLine=r.origine?('<div class="role-name" style="color:#7c3aed">🏢 '+r.origine+'</div>'):'';
+      catHtml+=`<div class="popup-role"><span class="role-st st-${sc}">${sl}</span><div class="role-info"><div class="role-fn">${fnLabel}</div>${nomLine}${origLine}${dateLine}</div><span class="role-type">${r.type}</span></div>`;
     });
   });
   return `<div class="popup-inner"><div class="popup-loc">${loc.name}</div><div class="popup-lvl">${loc.niveau}</div><div class="popup-div"></div>${catHtml}</div>
@@ -606,8 +680,8 @@ function renderMarkers(){
 
 function updateStats(){
   const vis=DATA.filter(r=>activeFilters.has(r.cat.trim()));
-  const total=vis.reduce((s,r)=>s+r.n,0),intl=vis.filter(r=>r.type==='International').reduce((s,r)=>s+r.n,0),
-        natl=vis.filter(r=>r.type!=='International').reduce((s,r)=>s+r.n,0),
+  const total=vis.length,intl=vis.filter(r=>r.type==='International').length,
+        natl=vis.filter(r=>r.type!=='International').length,
         sites=LOCATIONS.filter(l=>l.roles.some(r=>activeFilters.has(r.cat.trim()))&&getCoords(l.name)).length;
   document.getElementById('s-total').textContent=total;document.getElementById('s-intl').textContent=intl;
   document.getElementById('s-natl').textContent=natl;document.getElementById('s-sites').textContent=sites;
@@ -618,7 +692,7 @@ function loadData(rows,filename){
   DATA=rows;LOCATIONS=groupByLoc(rows);currentFilename=filename;
   const cats=getCategories(LOCATIONS);
   buildFilters(cats);renderMarkers();renderLocList();
-  const total=rows.reduce((s,r)=>s+r.n,0),staffed=rows.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+  const total=rows.length,staffed=rows.filter(r=>statusClass(r.stat)==='ok').length;
   document.getElementById('header-sub').textContent=`${LOCATIONS.length} sites · ${total} postes · ${staffed} staffés · ${new Date().toLocaleDateString('fr-FR')}`;
   if(filename){const b=document.getElementById('upload-badge');b.textContent=filename;b.classList.add('visible');}
   document.getElementById('status-txt').textContent=`${total} postes, ${staffed} staffés`;
@@ -711,76 +785,14 @@ function showToast(msg,type){
 }
 
 // ── Données intégrées (V3 — 24 mai 2026) ──
-const DEFAULT_ROWS = [
-  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Team Lead OSL - DRC',cat:'Coordination',type:'International',stat:'Recruté',n:1,nom:'Ahmadou Wouna',deb:'22 mai 2026',fin:'30 Septembre 2026'},
-  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Supply Chain Officer',cat:'Supply Chain',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Warehouse Manager',cat:'Warehouse',type:'UNV',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Warehouse Assistant',cat:'Warehouse',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination CO / dispatch',loc:'Kinshasa',fn:'Procurement Officer',cat:'Procurement',type:'National',stat:'Recruté',n:1,nom:'Fifi Tembo',deb:'22 Mai 2026',fin:'30 Septembre 2026'},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Team Lead OSL - EVD responses',cat:'Coordination',type:'International',stat:'Recruté',n:1,nom:'Zinedine Kada',deb:'22 mai 2026',fin:'1 juillet 2026'},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Health Logistician',cat:'Health Logistics',type:'International',stat:'Recruté',n:1,nom:'Luca Fontana',deb:'22 mai 2026',fin:'5 juin 2026'},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'HLCP Coordinator',cat:'Health Logistics',type:'International',stat:'Identified',n:1,nom:'Jason Carmichael',deb:null,fin:'1 juillet 2026'},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Log Field Support',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Supply Chain Manager',cat:'Supply Chain',type:'International',stat:'Recruté',n:1,nom:'Lesly Dieuville',deb:'22 mai 2026',fin:'30 juin 2026'},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Deputy SCM / Mobile implementing officer',cat:'Supply Chain',type:'International',stat:'Recruté',n:1,nom:'Miquel Serra',deb:'22 mai 2026',fin:'30 juin 2026'},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Fleet manager',cat:'Fleet management',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Recruté',n:1,nom:'Jacques Kanyala',deb:'22 mai 2026',fin:'30 juin 2026'},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Assistant Log Ops',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Assistant Supply',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Warehouse Assistant',cat:'Warehouse',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Procurement Assistant',cat:'Procurement',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination EVD',loc:'Bunia',fn:'Drivers',cat:'Transport',type:'National',stat:'Recruté',n:3,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Log OPS Officer',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Health Logistician',cat:'Health Logistics',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Assistant Log Field Ops / assistant fleet',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Assistant Supply Support',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Warehouse storekeeper',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Mongbwalu',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Log OPS Officer',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Health Logistician',cat:'Health Logistics',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Assistant Log Field Ops / assistant fleet',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Assistant Supply Support',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Warehouse storekeeper',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Rwampara',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Goma',fn:'OSL TL',cat:'Coordination',type:'International',stat:'Identified',n:1,nom:'Jerome Souquet',deb:'1 juin 2026',fin:'15 juillet 2026'},
-  {niveau:'Sous Coordination',loc:'Goma',fn:'Log OPS Officer',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Goma',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Goma',fn:'Assistant Log Field Ops',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Goma',fn:'Assistant Supply Support / procurement',cat:'Supply Chain',type:'National',stat:'Recruté',n:1,nom:'Aline Katungu',deb:'22 mai 2026',fin:'30 Septembre 2026'},
-  {niveau:'Sous Coordination',loc:'Goma',fn:'Warehouse storekeeper',cat:'Supply Chain',type:'National',stat:'Recruté',n:1,nom:'Frederic Saburo',deb:'22 mai 2026',fin:'30 Septembre 2026'},
-  {niveau:'Sous Coordination',loc:'Goma',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:3,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Beni',fn:'Log OPS Officer',cat:'Operations Support',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Beni',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Beni',fn:'Assistant Log Field Ops / assistant fleet',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Beni',fn:'Assistant Supply Support / procurement',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Beni',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Beni',fn:'Procurement Assistant',cat:'Procurement',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Butembo',fn:'Log OPS Officer',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Butembo',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Butembo',fn:'Assistant Log Field Ops / assistant fleet',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Butembo',fn:'Assistant Supply Support / procurement',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Butembo',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
-  {niveau:'Sous Coordination',loc:'Butembo',fn:'Procurement Assistant',cat:'Procurement',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination',loc:'Uganda',fn:'Team Lead OSL',cat:'Coordination',type:'International',stat:'Recruté',n:1,nom:'Carla Mendizabal',deb:'22 mai 2026',fin:'15 juillet 2026'},
-  {niveau:'Coordination',loc:'Uganda',fn:'Health Logistician',cat:'Health Logistics',type:'International',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination',loc:'Uganda',fn:'Polyvalent LOG support',cat:'Operations Support',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination',loc:'Uganda',fn:'Supply Chain Officer',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination',loc:'Uganda',fn:'Assistant Health Log',cat:'Health Logistics',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination',loc:'Uganda',fn:'Warehouse Officer',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination',loc:'Uganda',fn:'Storekeeper',cat:'Supply Chain',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination',loc:'Uganda',fn:'Procurement officer',cat:'Procurement',type:'National',stat:'Vacant',n:1,nom:null,deb:null,fin:null},
-  {niveau:'Coordination',loc:'Uganda',fn:'Drivers',cat:'Transport',type:'National',stat:'Vacant',n:2,nom:null,deb:null,fin:null},
-];
+const DEFAULT_ROWS = [{"niveau":"Coordination CO / dispatch","loc":"Kinshasa","fn":"Team Lead OSL - DRC","cat":"Coordination","type":"International","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Ahmadou Wouna","deb":"22 mai 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination CO / dispatch","loc":"Kinshasa","fn":"Supply Chain Officer","cat":"Supply Chain","type":"International","origine":"SBP","stat":"Vacant","n":1,"nom":null,"deb":"1 juillet 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination CO / dispatch","loc":"Kinshasa","fn":"Warehouse Manager","cat":"Warehouse","type":"International","origine":"WHO Deployement","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination CO / dispatch","loc":"Kinshasa","fn":"Warehouse Assitant","cat":"Warehouse","type":"International","origine":"WHO Deployement","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination CO / dispatch","loc":"Kinshasa","fn":"Procurement Officer","cat":"Procurement","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Fifi Tembo","deb":"22 Mai 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Team Lead OSL - EVD responses","cat":"Coordination","type":"International","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Zinedine Kada","deb":"22 mai 2026","fin":"1 juillet 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Deputy OSL TL","cat":"Coordination","type":"International","origine":"Consultant or STP","stat":"Identifié","n":1,"nom":"Laurent Phung","deb":null,"fin":null},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Health Logistician","cat":"Health Logistics","type":"International","origine":"SBP","stat":"Identifié","n":1,"nom":"Benjamin Gbadia","deb":"1 juillet 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Health Logistician","cat":"Safe & Dignified Burial","type":"International","origine":"SBP","stat":"Identifié","n":1,"nom":"Osée MBUSA MBAILWAKO","deb":"15 juin 2026","fin":"31 juillet 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Health Logistician","cat":"ETC","type":"International","origine":"WHO Deployement","stat":"Identifié","n":1,"nom":"Jordi Sacristan","deb":"1 juillet 2026","fin":"31 juillet 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Health Logistician","cat":"Health Logistics (ETCs, SDB)","type":"International","origine":"WHO Deployement","stat":"Identifié","n":1,"nom":"Alex Freeman","deb":"1 juillet 2026","fin":"31 aout 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Log Field Support","cat":"Operations Support","type":"International","origine":"Consultant","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Supply Chain Manager","cat":"Supply Chain","type":"International","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Antoine Delaitre","deb":"10 juin 2026","fin":"10 juillet 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Deputy SCM / Mobile implementing officer","cat":"Supply Chain","type":"International","origine":"SBP","stat":"Identifié","n":1,"nom":"Aurelie Madou","deb":"1 juillet 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Fleet manager","cat":"Fleet management","type":"International","origine":"WHO Deployement","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Assistant Travel","cat":"Transport","type":"National","origine":"WHO Deployement","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Assistant Health Log","cat":"Health Logistics","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Jacques Kanyala","deb":"22 mai 2026","fin":"30 juin 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Assistant Health Log","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Assistant Log Ops","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Supply Officer","cat":"Supply Chain","type":"International","origine":"SBP","stat":"Identifié","n":1,"nom":"Liz Stanway","deb":"1 juillet 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Assistant Supply","cat":"Supply Chain","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Shipping Officer","cat":"Supply Chain","type":"International","origine":"SBP","stat":"Identifié","n":1,"nom":"Aurele Madou","deb":"1 juillet 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Transport Officer","cat":"Supply Chain","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Warehouse Manager","cat":"Supply Chain","type":"International","origine":"SBP","stat":"Identifié","n":1,"nom":"Prince Borbor","deb":"1 juillet 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Warehouse Assistant","cat":"Warehouse","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Warehouse Assistant","cat":"Warehouse","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Procurement Assistant","cat":"Procurement","type":"National","origine":"WHO Recruitment","stat":"Identifié","n":1,"nom":"Lucille","deb":"1 juillet 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Driver","cat":"","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Aimé Ntumba","deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Driver","cat":"","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Charles Mubiala","deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination EVD","loc":"Bunia","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Mongbwalo","fn":"Log OPS Officer","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Mongbwalo","fn":"Health Logistician","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Mongbwalo","fn":"Assistant Health Log","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Mongbwalo","fn":"Assistant Log Field Ops / assistant fleet","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Mongbwalo","fn":"Assistant Supply Support","cat":"Supply Chain","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Mongbwalo","fn":"Warehouse storekeeper","cat":"Supply Chain","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Mongbwalo","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Mongbwalo","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Rwampara","fn":"Log OPS Officer","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Rwampara","fn":"Health Logistician","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Rwampara","fn":"Assistant Health Log","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Rwampara","fn":"Assistant Log Field Ops / assistant fleet","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Rwampara","fn":"Assistant Supply Support","cat":"Supply Chain","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Rwampara","fn":"Warehouse storekeeper","cat":"Supply Chain","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Rwampara","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Rwampara","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Goma","fn":"Log OPS Officer","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Goma","fn":"Assistant Health Log","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Goma","fn":"Assistant Log Field Ops","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Goma","fn":"Assistant Supply Support / procurement","cat":"Supply Chain","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Aline Katungu","deb":"22 mai 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Goma","fn":"Warehouse storekeeper","cat":"Supply Chain","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Frederic Saburo","deb":"22 mai 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Goma","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Goma","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Goma","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Deployement","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Beni","fn":"Log OPS Officer","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Beni","fn":"Assistant Health Log","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Beni","fn":"Assistant Log Field Ops / assistant fleet","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Beni","fn":"Assistant Supply Support / procurement","cat":"Supply Chain","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Beni","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Beni","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Butembo","fn":"Log OPS Officer","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Butembo","fn":"Assistant Health Log","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Butembo","fn":"Assistant Log Field Ops / assistant fleet","cat":"Operations Support","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Butembo","fn":"Assistant Supply Support / procurement","cat":"Supply Chain","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Butembo","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Sous Coordination","loc":"Butembo","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination","loc":"Uganda, Kampala","fn":"Team Lead OSL","cat":"Coordination","type":"International","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Carla Mendizabal","deb":"22 mai 2026","fin":"15 juillet 2026"},{"niveau":"Coordination","loc":"Uganda, Kampala","fn":"Health Logistician","cat":"Health Logistics","type":"International","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination","loc":"Uganda, Kampala","fn":"Polyvalent LOG support","cat":"Operations Support","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Maria Mugisa","deb":"1 juin 2026","fin":"1 aout 2026"},{"niveau":"Coordination","loc":"Uganda, Kampala","fn":"Supply Chain Officer","cat":"Supply Chain","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"NIZEYIMANA, Gilbert","deb":"5 juin 2026","fin":"5 juillet 2026"},{"niveau":"Coordination","loc":"Uganda, Kampala","fn":"Assistant Health Log","cat":"Health Logistics","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination","loc":"Uganda, Kampala","fn":"Procurement officer","cat":"Procurement","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Somaya Makatte","deb":"1 juin 2026","fin":"1 aout 2026"},{"niveau":"Coordination","loc":"Uganda, Kampala","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Recruitment","stat":"Vacant","n":1,"nom":null,"deb":"15 juin 2026","fin":"30 Septembre 2026"},{"niveau":"Coordination","loc":"Uganda, Kampala","fn":"Driver","cat":"Transport","type":"National","origine":"WHO Deployement","stat":"Staffé","n":1,"nom":"Annete Tibesigwa","deb":"28 mai 2026","fin":"29 juillet 2026"}];
 
 // ── ★ PARTAGER ──
 function buildSummaryText() {
-  const total = DATA.reduce((s,r)=>s+r.n,0);
-  const staffed = DATA.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
-  const intl = DATA.filter(r=>r.type==='International').reduce((s,r)=>s+r.n,0);
-  const natl = DATA.filter(r=>r.type!=='International').reduce((s,r)=>s+r.n,0);
+  const total = DATA.length;
+  const staffed = DATA.filter(r=>statusClass(r.stat)==='ok').length;
+  const intl = DATA.filter(r=>r.type==='International').length;
+  const natl = DATA.filter(r=>r.type!=='International').length;
   const date = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
 
   let lines = [];
@@ -793,8 +805,8 @@ function buildSummaryText() {
   lines.push(`━━━━━━━━━━━━━━━━━━━━━━━`);
   LOCATIONS.forEach(loc => {
     if (!getCoords(loc.name)) return;
-    const tot = loc.roles.reduce((s,r)=>s+r.n,0);
-    const ok  = loc.roles.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+    const tot = loc.roles.length;
+    const ok  = loc.roles.filter(r=>statusClass(r.stat)==='ok').length;
     const pct = Math.round(ok/tot*100);
     const bar = ok===tot ? '🟢' : ok===0 ? '🔴' : '🟡';
     lines.push(`${bar} ${loc.name.padEnd(12)} ${ok}/${tot} staffés (${pct}%)`);
@@ -811,8 +823,8 @@ function buildSummaryText() {
 function openShare() {
   const summary = buildSummaryText();
   document.getElementById('share-summary-box').textContent = summary;
-  const total = DATA.reduce((s,r)=>s+r.n,0);
-  const staffed = DATA.filter(r=>statusClass(r.stat)==='ok').reduce((s,r)=>s+r.n,0);
+  const total = DATA.length;
+  const staffed = DATA.filter(r=>statusClass(r.stat)==='ok').length;
   document.getElementById('share-modal-sub').textContent =
     `${LOCATIONS.filter(l=>getCoords(l.name)).length} sites · ${total} postes · ${staffed} staffés`;
   document.getElementById('share-modal').classList.add('show');
@@ -999,13 +1011,14 @@ function renderAlertPanel() {
     const endFormatted = r.fin || '—';
     const fnShort = r.fn.length > 26 ? r.fn.substring(0,24)+'…' : r.fn;
 
+    const origBadge = r.origine ? ` · <span style="color:#7c3aed">${r.origine}</span>` : '';
     return `<div class="ap-row">
       <div class="ap-row-top">
         <div class="ap-avatar" style="background:${color}">${initials}</div>
         <div class="ap-name" title="${r.nom}">${r.nom}</div>
         <span class="ap-badge ap-badge-${lvl}">${badgeLabel}</span>
       </div>
-      <div class="ap-meta">${fnShort} · ${r.loc}</div>
+      <div class="ap-meta">${fnShort} · ${r.loc}${origBadge}</div>
       <div class="ap-meta" style="margin-top:1px">Fin : ${endFormatted}</div>
       ${pct !== null ? `<div class="ap-prog" title="Mission à ${pct}%"><div class="ap-prog-fill" style="width:${pct}%;background:${color}"></div></div>` : ''}
     </div>`;
@@ -1068,7 +1081,8 @@ function parseDate(str) {
     const day = parseInt(m[1]), yr = parseInt(m[3]);
     const raw = m[2].toLowerCase()
       .replace(/[éè]/g,'e').replace(/û/g,'u').replace(/â/g,'a')
-      .replace(/î/g,'i').replace(/ô/g,'o').replace(/à/g,'a');
+      .replace(/î/g,'i').replace(/ô/g,'o').replace(/à/g,'a')
+      .replace(/julllet/g,'juillet').replace(/jullet/g,'juillet');
     // Full-word first to avoid juin/juillet collision
     const full = {
       janvier:0,fevrier:1,mars:2,avril:3,mai:4,juin:5,
@@ -1405,7 +1419,7 @@ function getExportRows() {
 function exportExcel() {
   document.getElementById('export-dropdown').classList.remove('open');
   var rows = getExportRows();
-  var hdrs = ['Nom','Fonction','Site','Niveau','Type','Debut mission','Fin mission','Jours restants','Alerte','Avancement'];
+  var hdrs = ['Nom','Fonction','Site','Niveau','Type','Origine','Debut mission','Fin mission','Jours restants','Alerte','Avancement'];
   var lvlLbl = {w1:'<= 1 semaine',w2:'<= 2 semaines',w3:'<= 3 semaines',w4:'<= 4 semaines',ok:'OK',expired:'Expire'};
   var lines = [hdrs.join(';')];
   rows.forEach(function(r) {
@@ -1420,7 +1434,7 @@ function exportExcel() {
       var ela = Math.round((new Date() - s2) / 86400000);
       if (tot > 0) pct = Math.max(0, Math.min(100, Math.round(ela / tot * 100))) + '%';
     }
-    lines.push([r.nom||'', r.fn||'', r.loc||'', r.niveau||'', r.type||'',
+    lines.push([r.nom||'', r.fn||'', r.loc||'', r.niveau||'', r.type||'', r.origine||'',
       r.deb||'', r.fin||'', dlTxt, alTxt, pct
     ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';'));
   });
@@ -1464,6 +1478,7 @@ function exportPDF() {
       + '<td style="font-weight:500">' + (r.nom||'') + '</td>'
       + '<td style="color:#6b7280;font-size:11px">' + (r.fn||'') + '</td>'
       + '<td>' + (r.loc||'') + '</td>'
+      + '<td style="font-size:10px">' + (r.origine ? '<span style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;padding:1px 5px;border-radius:8px;font-size:10px">' + r.origine + '</span>' : '<span style="color:#d1d5db">—</span>') + '</td>'
       + '<td style="font-size:11px;color:#6b7280">' + (r.deb||'-') + '</td>'
       + '<td style="font-size:11px;color:#6b7280">' + (r.fin||'-') + '</td>'
       + '<td>' + prog + '</td>'
@@ -1496,7 +1511,7 @@ function exportPDF() {
     + '<div class="sc"><div class="sn" style="color:#dc2626">' + urgent + '</div><div class="sl">Alertes critiques</div></div>'
     + '<div class="sc"><div class="sn" style="color:#16a34a">' + (rows.length - urgent) + '</div><div class="sl">Missions OK</div></div>'
     + '</div>'
-    + '<table><thead><tr><th>Nom</th><th>Fonction</th><th>Site</th><th>Debut</th><th>Fin</th><th>Avancement</th><th>Alerte</th></tr></thead>'
+    + '<table><thead><tr><th>Nom</th><th>Fonction</th><th>Site</th><th>Origine</th><th>Debut</th><th>Fin</th><th>Avancement</th><th>Alerte</th></tr></thead>'
     + '<tbody>' + trows + '</tbody></table>'
     + '<div class="ftr">OSL EVD DRC - Plan RH - ' + today + '</div>'
     + '<scr' + 'ipt>window.onload=function(){window.print();}<\/scr' + 'ipt>'
@@ -1510,10 +1525,213 @@ function exportPDF() {
   setTimeout(function() { URL.revokeObjectURL(url); }, 15000);
 }
 
+
+// ── IMPRIMER PLAN RH COMPLET ──
+function printRH() {
+  var today = new Date().toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
+  var totalPosts = DATA.length;
+  var staffed = DATA.filter(function(r){ return statusClass(r.stat)==='ok'; }).length;
+  var identified = DATA.filter(function(r){ return statusClass(r.stat)==='id'; }).length;
+  var vacant = DATA.filter(function(r){ return statusClass(r.stat)==='va'; }).length;
+
+  // Group by location
+  var byLoc = {};
+  DATA.forEach(function(r) {
+    if (!byLoc[r.loc]) byLoc[r.loc] = {niveau: r.niveau, roles: []};
+    byLoc[r.loc].roles.push(r);
+  });
+
+  var lvlColors = {ok:'#16a34a', id:'#d97706', va:'#dc2626'};
+  var lvlLabels = {ok:'Staffé', id:'Identifié', va:'Vacant'};
+  var catColors = {
+    'Coordination':'#7c3aed','Supply Chain':'#0891b2','Health Logistics':'#ea580c',
+    'Operations Support':'#0066ff','Warehouse':'#db2777','Fleet management':'#ca8a04',
+    'Fleet Management':'#ca8a04','Transport':'#16a34a','Procurement':'#64748b'
+  };
+  function getCatColor(cat) {
+    var k = (cat||'').trim();
+    if (catColors[k]) return catColors[k];
+    for (var key in catColors) { if (k.toLowerCase().indexOf(key.toLowerCase()) >= 0) return catColors[key]; }
+    return '#6b7280';
+  }
+
+  var sectionsHtml = '';
+  Object.keys(byLoc).forEach(function(locName) {
+    var loc = byLoc[locName];
+    var locTotal = loc.roles.length;
+    var locStaffed = loc.roles.filter(function(r){ return statusClass(r.stat)==='ok'; }).length;
+    var pct = locTotal > 0 ? Math.round(locStaffed/locTotal*100) : 0;
+    var barColor = pct === 100 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+
+    var rows = '';
+    loc.roles.forEach(function(r) {
+      var sc = statusClass(r.stat);
+      var col = lvlColors[sc] || '#6b7280';
+      var lbl = lvlLabels[sc] || r.stat;
+      var catCol = getCatColor(r.cat);
+      var fnLabel = r.n > 1 ? r.fn + ' ×' + r.n : r.fn;
+      var nomCell = r.nom
+        ? '<span style="color:#0066ff;font-style:italic">' + r.nom + '</span>'
+        : '<span style="color:#9ca3af">—</span>';
+      var datesCell = (r.deb || r.fin)
+        ? (r.deb||'?') + ' → ' + (r.fin||'?')
+        : '<span style="color:#d1d5db">—</span>';
+      rows += '<tr>'
+        + '<td style="padding:6px 10px">'
+          + '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + catCol + ';margin-right:6px;vertical-align:middle"></span>'
+          + '<span style="font-size:10px;color:' + catCol + ';font-weight:600;text-transform:uppercase;letter-spacing:.04em">' + (r.cat||'') + '</span>'
+        + '</td>'
+        + '<td style="padding:6px 10px;font-weight:500">' + fnLabel + '</td>'
+        + '<td style="padding:6px 10px">' + nomCell + '</td>'
+        + '<td style="padding:6px 10px;font-size:10px;color:#6b7280">' + datesCell + '</td>'
+        + '<td style="padding:6px 10px;font-size:10px;color:#6b7280">' + (r.type||'') + '</td>'
+      + '<td style="padding:6px 10px;font-size:10px"><span style="' + (r.origine?'background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:500':'color:#d1d5db') + '">' + (r.origine||'—') + '</span></td>'
+        + '<td style="padding:6px 10px;text-align:center">'
+          + '<span style="background:' + col + '1a;color:' + col + ';border:1px solid ' + col + '40;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">' + lbl + '</span>'
+        + '</td>'
+        + '</tr>';
+    });
+
+    sectionsHtml += '<div style="margin-bottom:24px;break-inside:avoid">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:8px 8px 0 0;border-bottom:none">'
+        + '<div>'
+          + '<span style="font-size:14px;font-weight:700;color:#1a1d23">' + locName + '</span>'
+          + '<span style="margin-left:10px;font-size:10px;color:#6b7280;font-family:monospace;background:#eff6ff;padding:2px 7px;border-radius:10px">' + loc.niveau + '</span>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:10px">'
+          + '<div style="width:80px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">'
+            + '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius:3px"></div>'
+          + '</div>'
+          + '<span style="font-size:11px;font-family:monospace;color:' + barColor + ';font-weight:600">' + locStaffed + '/' + locTotal + ' staffés</span>'
+        + '</div>'
+      + '</div>'
+      + '<table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;overflow:hidden">'
+        + '<thead><tr style="background:#fafafa">'
+          + '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;border-bottom:1px solid #f0f0f0;width:140px">Catégorie</th>'
+          + '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;border-bottom:1px solid #f0f0f0">Fonction</th>'
+          + '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;border-bottom:1px solid #f0f0f0;width:140px">Nom</th>'
+          + '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;border-bottom:1px solid #f0f0f0;width:160px">Dates</th>'
+          + '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;border-bottom:1px solid #f0f0f0;width:90px">Type</th>'
+          + '<th style="padding:6px 10px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;border-bottom:1px solid #f0f0f0;width:110px">Origine</th>'
+          + '<th style="padding:6px 10px;text-align:center;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;border-bottom:1px solid #f0f0f0;width:80px">Statut</th>'
+        + '</tr></thead>'
+        + '<tbody>' + rows + '</tbody>'
+      + '</table>'
+    + '</div>';
+  });
+
+  var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    + '<title>Plan RH BVD DRC - UGA - ' + today + '</title>'
+    + '<style>'
+    + 'body{font-family:Arial,sans-serif;margin:0;padding:24px 28px;color:#1a1d23;font-size:12px}'
+    + '.page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2.5px solid #0066ff}'
+    + '.logo{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#0066ff);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;margin-right:12px;flex-shrink:0}'
+    + 'h1{font-size:18px;font-weight:700;margin:0 0 3px;letter-spacing:-0.01em}'
+    + '.sub{font-size:10px;color:#6b7280;font-family:monospace}'
+    + '.summary{display:flex;gap:10px;margin-bottom:22px}'
+    + '.sc{background:#f7f8fa;border:1px solid #e5e7eb;border-radius:8px;padding:9px 14px;flex:1;text-align:center}'
+    + '.sn{font-size:22px;font-weight:700;font-family:monospace;line-height:1}'
+    + '.sl{font-size:9px;color:#6b7280;margin-top:3px;text-transform:uppercase;letter-spacing:.06em}'
+    + 'tr:nth-child(even) td{background:#fafafa}'
+    + 'tr:hover td{background:#f0f7ff}'
+    + '.footer{margin-top:24px;font-size:9px;color:#9ca3af;text-align:center;border-top:1px solid #e5e7eb;padding-top:10px}'
+    + '.legend{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}'
+    + '.leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:#6b7280}'
+    + '@media print{body{padding:12px 16px}@page{margin:1cm;size:A4 landscape}}'
+    + '</style>'
+    + '</head><body>'
+    + '<div class="page-header">'
+      + '<div style="display:flex;align-items:center">'
+        + '<div class="logo">OSL</div>'
+        + '<div>'
+          + '<h1>Plan RH BVD DRC - UGA - Carte et Suivi missions</h1>'
+          + '<div class="sub">Généré le ' + today + ' · ' + Object.keys(byLoc).length + ' sites · ' + totalPosts + ' postes</div>'
+        + '</div>'
+      + '</div>'
+      + '<div style="text-align:right"><div class="sub" style="color:#0066ff;font-weight:600">CONFIDENTIEL</div><div class="sub">OSL · WCARO</div></div>'
+    + '</div>'
+    + '<div class="summary">'
+      + '<div class="sc"><div class="sn" style="color:#1a1d23">' + totalPosts + '</div><div class="sl">Total postes</div></div>'
+      + '<div class="sc"><div class="sn" style="color:#16a34a">' + staffed + '</div><div class="sl">Staffés</div></div>'
+      + '<div class="sc"><div class="sn" style="color:#d97706">' + identified + '</div><div class="sl">Identifiés</div></div>'
+      + '<div class="sc"><div class="sn" style="color:#dc2626">' + vacant + '</div><div class="sl">Vacants</div></div>'
+      + '<div class="sc"><div class="sn" style="color:#6b7280">' + Math.round((staffed+identified)/totalPosts*100) + '%</div><div class="sl">Taux couverture</div></div>'
+      + '<div class="sc"><div class="sn" style="color:#6b7280">' + Object.keys(byLoc).length + '</div><div class="sl">Sites actifs</div></div>'
+    + '</div>'
+    + '<div class="legend">'
+      + '<span style="font-size:10px;font-weight:600;color:#1a1d23;margin-right:4px">STATUT :</span>'
+      + '<span class="leg-item"><span style="width:10px;height:10px;border-radius:50%;background:#16a34a1a;border:1px solid #bbf7d0;display:inline-block"></span> Staffé</span>'
+      + '<span class="leg-item"><span style="width:10px;height:10px;border-radius:50%;background:#d974061a;border:1px solid #fde68a;display:inline-block"></span> Identifié</span>'
+      + '<span class="leg-item"><span style="width:10px;height:10px;border-radius:50%;background:#dc26261a;border:1px solid #fecaca;display:inline-block"></span> Vacant</span>'
+    + '</div>'
+    + sectionsHtml
+    + '<div class="footer">Plan RH BVD DRC - UGA · OSL · ' + today + ' · Document confidentiel</div>'
+    + '<scr' + 'ipt>window.onload=function(){window.print();}<\/scr' + 'ipt>'
+    + '</body></html>';
+
+  var blob = new Blob([doc], {type:'text/html;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var win = window.open(url, '_blank');
+  if (!win) showToast('Autorisez les popups pour imprimer', 'error');
+  else showToast('Plan RH pret - Ctrl+P pour imprimer / PDF', 'success');
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 20000);
+}
+
+
+// ── PASSWORD PROTECTION ──
+var PWD = 'OSLRH@2026';
+
+function openPwd() {
+  document.getElementById('pwd-overlay').classList.add('show');
+  setTimeout(function(){ document.getElementById('pwd-input').focus(); }, 100);
+}
+
+function closePwd() {
+  document.getElementById('pwd-overlay').classList.remove('show');
+  document.getElementById('pwd-input').value = '';
+  document.getElementById('pwd-error').textContent = '';
+  document.getElementById('pwd-input').classList.remove('error');
+}
+
+function clearPwdError() {
+  document.getElementById('pwd-error').textContent = '';
+  document.getElementById('pwd-input').classList.remove('error');
+}
+
+function checkPwd() {
+  var val = document.getElementById('pwd-input').value;
+  if (val === PWD) {
+    closePwd();
+    document.getElementById('file-input').click();
+  } else {
+    document.getElementById('pwd-input').classList.add('error');
+    document.getElementById('pwd-error').textContent = '❌ Mot de passe incorrect.';
+    document.getElementById('pwd-input').value = '';
+    document.getElementById('pwd-input').focus();
+  }
+}
+
+function togglePwdVisibility() {
+  var input = document.getElementById('pwd-input');
+  var eye = document.getElementById('pwd-eye');
+  if (input.type === 'password') {
+    input.type = 'text';
+    eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    input.type = 'password';
+    eye.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closePwd();
+});
+
 // ── Init ──
 loadData(DEFAULT_ROWS, null);
 document.getElementById('header-sub').textContent =
-  `Plan RH EVD DRC · 24 mai 2026 · ${LOCATIONS.length} sites · ${DEFAULT_ROWS.reduce((s,r)=>s+r.n,0)} postes`;
+  `Plan RH EVD DRC · 31 mai 2026 · ${LOCATIONS.length} sites · ${DEFAULT_ROWS.length} postes`;
 </script>
-</body>
-</html>
+
+
+</body></html>
