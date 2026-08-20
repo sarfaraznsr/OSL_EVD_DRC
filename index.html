@@ -546,17 +546,42 @@ function parseXLSX(ab) {
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
   const hIdx=rows.findIndex(r=>r&&r.some(c=>c&&String(c).toLowerCase().includes('localisation')));
   const start=hIdx>=0?hIdx+1:3;
+  // V14 : mapping des colonnes par en-tête (robuste à l'insertion/suppression de colonnes,
+  // ex. colonne "Grade" ajoutée au plan du 20/08). La colonne "Nombre" est ignorée (1 poste par ligne).
+  const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const col={niveau:0,loc:1,fn:2,cat:3,type:4,origine:5,stat:6,nom:8,deb:9,fin:10,grade:-1,email:-1}; // défauts V14
+  if(hIdx>=0){
+    rows[hIdx].forEach((h,i)=>{
+      const v=norm(h);if(!v)return;
+      if(v.startsWith('niveau'))col.niveau=i;
+      else if(v.startsWith('localisation'))col.loc=i;
+      else if(v.startsWith('fonction'))col.fn=i;
+      else if(v.startsWith('categorie'))col.cat=i;
+      else if(v==='type'||v.startsWith('type '))col.type=i;
+      else if(v.startsWith('grade'))col.grade=i;
+      else if(v.startsWith('origine'))col.origine=i;
+      else if(v.startsWith('stat'))col.stat=i;
+      else if(v.startsWith('nombre')){/* ignorée volontairement */}
+      else if(v.startsWith('nom'))col.nom=i;
+      else if(v.includes('commencement')||v.includes('debut'))col.deb=i;
+      else if(v.includes('fin'))col.fin=i;
+      else if(v.startsWith('email')||v.startsWith('e-mail'))col.email=i;
+    });
+  }
+  const g=(r,k)=>{const i=col[k];return (i>=0&&r[i]!=null&&String(r[i]).trim()!=='')?String(r[i]).trim():null;};
   const result=[];let curNiveau='',curLoc='';
   for(let i=start;i<rows.length;i++){
     const r=rows[i];if(!r||r.every(c=>!c))continue;
-    if(r[0])curNiveau=String(r[0]).trim();if(r[1])curLoc=String(r[1]).trim();
-    const fn=r[2]?String(r[2]).trim():null,cat=r[3]?String(r[3]).trim():'',
-          type=r[4]?String(r[4]).trim():'',origine=r[5]?String(r[5]).trim():null,
-          stat=r[6]?String(r[6]).trim():'Vacant',n=parseInt(r[7])||1,
-          nom=r[8]?String(r[8]).trim():null,
-          deb=r[9]?String(r[9]).trim():null,fin=r[10]?String(r[10]).trim():null;
+    const nv=g(r,'niveau');if(nv)curNiveau=nv;
+    const lc=g(r,'loc');if(lc)curLoc=lc;
+    const fn=g(r,'fn');
     if(!fn||!curLoc)continue;
-    result.push({niveau:curNiveau,loc:curLoc.trim(),fn,cat,type,origine,stat,n,nom,deb,fin});
+    result.push({
+      niveau:curNiveau,loc:curLoc,fn,
+      cat:g(r,'cat')||'',type:g(r,'type')||'',grade:g(r,'grade'),
+      origine:g(r,'origine'),stat:g(r,'stat')||'Vacant',n:1,
+      nom:g(r,'nom'),deb:g(r,'deb'),fin:g(r,'fin'),email:g(r,'email')
+    });
   }
   return result;
 }
@@ -650,10 +675,11 @@ function buildPopup(loc){
     catHtml+=`<div class="popup-cat-ttl" style="color:${catColor(cat)}">${cat}</div>`;
     roles.forEach(r=>{
       const sc=statusClass(r.stat),sl=statusLabel(r.stat),fnLabel=r.n>1?`${r.fn} ×${r.n}`:r.fn;
+      const gradeTag=r.grade?` <span style=\"font-size:9px;color:#64748b;font-family:var(--mono)\">[${r.grade}]</span>`:'';
       const nomLine=r.nom?`<div class="role-name">👤 ${r.nom}</div>`:'';
       const dateLine=(r.deb||r.fin)?`<div class="role-dates">${r.deb||''}${r.deb&&r.fin?' → ':''}${r.fin||''}</div>`:'';
       const origLine=r.origine?('<div class="role-name" style="color:#7c3aed">🏢 '+r.origine+'</div>'):'';
-      catHtml+=`<div class="popup-role"><span class="role-st st-${sc}">${sl}</span><div class="role-info"><div class="role-fn">${fnLabel}</div>${nomLine}${origLine}${dateLine}</div><span class="role-type">${r.type}</span></div>`;
+      catHtml+=`<div class="popup-role"><span class="role-st st-${sc}">${sl}</span><div class="role-info"><div class="role-fn">${fnLabel}${gradeTag}</div>${nomLine}${origLine}${dateLine}</div><span class="role-type">${r.type}</span></div>`;
     });
   });
   return `<div class="popup-inner"><div class="popup-loc">${loc.name}</div><div class="popup-lvl">${loc.niveau}</div><div class="popup-div"></div>${catHtml}</div>
